@@ -25,6 +25,8 @@ import pyqtgraph
 #else:
     #debug = False
 
+channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "external voltage"}
+volcal = 2250
 
 class main_window(QWidget):  
     def __init__(self):
@@ -78,9 +80,9 @@ class ctrl_panel(QVBoxLayout):
         super().__init__()
         self.tab_bar = QTabWidget()
         this_sweep_tab = sweep_tab()
-        self.settings = QWidget()
+        this_settings_tab = settings_tab()
         self.tab_bar.addTab(this_sweep_tab, "Sweep")
-        self.tab_bar.addTab(self.settings, "Settings")
+        self.tab_bar.addTab(this_settings_tab, "Settings")
         self.addWidget(self.tab_bar)
 
 class sweep_tab(QWidget):
@@ -132,10 +134,67 @@ class sweep_tab(QWidget):
         
         self.setLayout(l_main_Layout)
         
-#class settings_tab(QWidget):
-    
-
+class settings_tab(QWidget):
+    def __init__(self):
+        super().__init__()
+        l_main_Layout = QVBoxLayout()
         
+        # UI to assign scope channels
+        chan_group =  QGroupBox()
+        chan_layout = QVBoxLayout()
+        chan_group.setLayout(chan_layout)
+        
+        chan_rows = []
+        for channel_num in range(1,5):
+            this_channel = channel_settings(channel_num)
+            chan_rows.append(this_channel)
+            chan_layout.addLayout(this_channel)
+        
+        l_main_Layout.addWidget(chan_group)
+        
+        
+        # UI to set or find voltage callibration factor
+        volcal_group = QGroupBox()
+        volcal_layout = QVBoxLayout()
+        volcal_group.setLayout(volcal_layout)
+        volcal_row = QHBoxLayout()
+        
+        self.volcal_box = QLineEdit(str(volcal))
+        self.volcal_box.setMaximumWidth(100)
+        self.volcal_box.textChanged.connect(self.change_volcal)
+        volcal_get = QPushButton("Find")
+        volcal_row.addWidget(QLabel("Callibration Factor: "))
+        volcal_row.addWidget(self.volcal_box)
+        
+        volcal_layout.addLayout(volcal_row)
+        l_main_Layout.addWidget(volcal_group)
+        
+        self.setLayout(l_main_Layout)
+        
+    def change_volcal(self):
+        volcal = int(self.volcal_box.text())
+        print(volcal)
+        
+
+  
+class channel_settings(QHBoxLayout):
+    def __init__(self, number):
+        """Beware, Channels are numbered 1 to 4"""
+        super().__init__()
+        self.number = number
+        self.addWidget(QLabel("Channel " + str(self.number)))
+        self.chan_cbox = QComboBox()
+        chan_options = ["nothing", "internal voltage", "current", "external voltage"]
+        self.chan_cbox.addItems(chan_options)
+        self.addWidget(self.chan_cbox)
+        self.chan_cbox.setCurrentIndex(chan_options.index(channel_assignment[self.number]))
+        self.chan_cbox.currentIndexChanged.connect(self.change_channel)
+        
+    def change_channel(self):
+        channel_assignment[self.number] = self.chan_cbox.currentText()
+        
+        
+  
 if __name__ == '__main__':   
     app = QApplication(sys.argv)
     #if sim:
