@@ -6,6 +6,8 @@ import configparser
 import time
 import numpy as np
 import pylab
+import visa
+import ivi
 from multiprocessing import Process, Queue, cpu_count
 from scipy.optimize import leastsq,broyden1
 from scipy import stats
@@ -27,6 +29,14 @@ import pyqtgraph
 
 channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "external voltage"}
 volcal = 2250
+scope_id = ""
+scope = None
+resistance = 4.2961608775
+frequency = 13560000
+result_queue = Queue(100)
+voltage_ref_phase = 0
+current_ref_phase = 0
+ref_size = 20 # Number of phase reference points to average over
 
 class main_window(QWidget):  
     def __init__(self):
@@ -38,8 +48,8 @@ class main_window(QWidget):
         l_main_Layout.addLayout(this_ctrl_panel)
         #l_main_Layout.addWidget(l_ctl_panel)
         
-        rand_data = np.random.normal(size=100)
-        this_data_monitor.update(rand_data)
+        self.rand_data = np.random.normal(size=100)
+        #this_data_monitor.update(rand_data)
 
         #l_data_monitor.addWidget(graph)
         
@@ -59,10 +69,18 @@ class data_monitor(QVBoxLayout):
         self.tab_bar.addTab(self.graph, "Graph")
         self.tab_bar.addTab(self.table, "Table")
 
+        self.update_timer = QtCore.QTimer(self)
+        self.update_timer.setInterval(200)
+        self.update_timer.timeout.connect(self.update)
+
         self.addWidget(self.tab_bar)
         
-    def update(self, data):
-        self.update_graph(data)
+    def update(self):
+        while not queue.empty():
+            data = queue.get()
+            print(data)
+        data = self.rand_data
+        update_graph(self.rand_data)
         
     def update_graph(self,data):
         """Updates the Graph with new data, 
@@ -81,8 +99,10 @@ class ctrl_panel(QVBoxLayout):
         self.tab_bar = QTabWidget()
         this_sweep_tab = sweep_tab()
         this_settings_tab = settings_tab()
+        this_scope_tab = scope_tab()
         self.tab_bar.addTab(this_sweep_tab, "Sweep")
         self.tab_bar.addTab(this_settings_tab, "Settings")
+        self.tab_bar.addTab(this_scope_tab, "Scope")
         self.addWidget(self.tab_bar)
 
 class sweep_tab(QWidget):
@@ -90,6 +110,7 @@ class sweep_tab(QWidget):
         """ Don't look at it!"""
         super().__init__()
         
+        self.this_sweep = sweeper()
         l_main_Layout = QVBoxLayout()
 
         # Power stuff
@@ -105,7 +126,9 @@ class sweep_tab(QWidget):
         
         power_btn_row = QHBoxLayout()
         power_start_btn = QPushButton("Start")
+        power_start_btn.clicked.connect(self.start_sweep)
         power_stop_btn = QPushButton("Pause")
+        power_stop_btn.clicked.connect(self.stop_sweep)
         power_btn_row.addWidget(power_start_btn)
         power_btn_row.addWidget(power_stop_btn)
         power_layout.addLayout(power_btn_row)
@@ -124,15 +147,23 @@ class sweep_tab(QWidget):
         ref_layout.addLayout(show_ref_row)
                 
         ref_btn_row = QHBoxLayout()
-        ref_start_btn = QPushButton("Start")
-        ref_stop_btn = QPushButton("Stop")
+        ref_start_btn = QPushButton("Find")
+        ref_start_btn.clicked.connect(self.find_ref)
         ref_btn_row.addWidget(ref_start_btn)
-        ref_btn_row.addWidget(ref_stop_btn)
         ref_layout.addLayout(ref_btn_row)
         
         l_main_Layout.addWidget(ref_group)
         
         self.setLayout(l_main_Layout)
+        
+    def start_sweep(self):
+        self.this_sweep.start()
+
+    def stop_sweep(self):
+        self.this_sweep.stop()
+        
+    def find_ref(self):
+        self.ref_label.setText(self.this_sweep.find_ref())
         
 class settings_tab(QWidget):
     def __init__(self):
@@ -173,7 +204,6 @@ class settings_tab(QWidget):
         
     def change_volcal(self):
         volcal = int(self.volcal_box.text())
-        print(volcal)
         
 
   
@@ -194,11 +224,161 @@ class channel_settings(QHBoxLayout):
         channel_assignment[self.number] = self.chan_cbox.currentText()
         
         
+class scope_tab(QWidget):
+    def __init__(self):
+        """Choose and configure scope"""
+        super().__init__()
+        visa_rm = visa.ResourceManager()
+        device_list = visa_rm.list_resources()
+        
+        l_main_Layout = QVBoxLayout()
+        
+        device_group = QGroupBox()
+        device_layout = QVBoxLayout()
+        device_group.setLayout(device_layout)
+        device_row = QHBoxLayout()
+        
+        self.device_cbox = QComboBox()
+        self.device_cbox.addItems(device_list)
+        self.device_cbox.currentIndexChanged.connect(self.choose_scope)        
+
+        device_row.addWidget(QLabel("Device: "))
+        device_row.addWidget(self.device_cbox)
+        device_layout.addLayout(device_row)
+        
+        l_main_Layout.addWidget(device_group)
+        self.setLayout(l_main_Layout)
+        
+    def choose_scope(self):
+        scope_id = self.device_cbox.currentText()
+        if not sim:
+            scope = ivi.agilent.agilentMSO7104B(scope_id)
+        
+
+class sweeper():
+    def __init__(self):
+        self.data_queue = Queue(10)
+        self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
+        self.fit_process_list = []
+        for i in range(cpu_count()-1):
+            this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue,)) 
+            self.fit_process_list.append(this_fit_proccess)
+    
+    
+    def start(self):
+        self.io_process.start()
+        for fit_process in self.fit_process_list:
+            fit_process.start()
+        
+        
+    def stop(self):
+        if self.io_process.is_alive():
+            self.io_process.terminate()
+        for fit_process in self.fit_process_list:
+            while not self.data_queue.empty():
+                time.sleep(1)
+            if fit_process.is_alive():
+                fit_process.terminate()
+            while not self.data_queue.empty():
+                trash = self.data_queue.get()
+        
+    def find_ref(self):
+        self.stop()
+        ref_queue = Queue(ref_size*2) # Don't ask
+        ref_worker_list = []
+        self.io_process.start()
+        for i in range(int(cpu_count()-1)):
+            this_ref_worker = Process(target=self.ref_worker, args=(self.data_queue, ref_queue))
+            ref_worker_list.append(this_ref_worker)
+            this_ref_worker.start()
+        for ref_worker in ref_worker_list:
+            ref_worker.join()
+        self.stop()
+        v_phases = []
+        c_phases = []
+        for phase_tuple in iter(ref_queue.get, None):
+            v_phases.append(phase_tuple[0])
+            c_phases.append(phase_tuple[1])
+            
+        # Getting the average of an angle is hard:
+        # https://en.wikipedia.org/wiki/Mean_of_circular_quantities
+        mean_v_phase = np.arctan2(
+            np.sum(np.sin(np.array(v_phases)))/len(v_phases),
+            np.sum(np.cos(np.array(v_phases)))/len(v_phases)
+            ) % (2*np.pi)
+        mean_c_phase = np.arctan2(
+            np.sum(np.sin(np.array(c_phases)))/len(c_phases),
+            np.sum(np.cos(np.array(c_phases)))/len(c_phases)
+            ) % (2*np.pi)
+        
+        voltage_ref_phase = mean_v_phase
+        current_ref_phase = mean_c_phase
+        return voltage_ref_phase - current_ref_phase
+        
+            
+    def ref_worker(self, data_queue, ref_queue):
+        for i in range(int(ref_size/cpu_count()-2)):
+            data_dict = data_queue.get(timeout=5)
+            voltage_data = data_dict["internal voltage"]
+            current_data = data_dict["current"]
+            v_amp, v_freq, v_phase = self.fit_func(voltage_data)
+            c_amp, c_freq, c_phase = self.fit_func(current_data)
+            result = (v_phase, c_phase)
+            ref_queue.put(result)
+    
+    def io_worker(self, data_queue):
+        """ Gets waveforms from the scope and puts them into the data_queue."""
+        while True and not sim:
+            data_dict = {}
+            scope.measurement.initiate()
+            for chan_num in channel_assignment:
+                chan_name = channel_assignment[chan_num]
+                data_dict[chan_name] = scope.channels[chan_num-1].measurement.fetch_waveform()
+            data_queue.put(data_dict)
+                
+    
+    def fit_worker(self, data_queue):
+        while True:
+            data_dict = data_queue.get()
+            voltage_data = data_dict["internal voltage"]
+            current_data = data_dict["current"]
+            v_amp, v_freq, v_phase = self.fit_func(voltage_data)
+            c_amp, c_freq, c_phase = self.fit_func(current_data)
+            voltage_rms = v_amp/np.sqrt(2)
+            current_rms = c_amp/np.sqrt(2)
+            phaseshift = np.pi/2 + (current_ref_phase - c_phase) - (voltage_ref_phase - v_phase)
+            power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
+            result = (voltage_rms, current_rms, phaseshift, power)
+            result_queue.put(result)
+        
+    def fit_func(self,data):
+        time = data[:,0]
+        amplitude = data[:,1]
+        guess_mean = np.mean(amplitude)
+        guess_amplitude = np.amax(amplitude)
+        guess_phase = 0
+        guess_y0 = 0
+        guess_frequency = frequency
+        data_first_guess = (guess_amplitude
+                    *np.sin(time*guess_frequency*2*np.pi + guess_phase%(2*np.pi))
+                    + guess_mean)
+        optimize_func = lambda x: (x[0]
+                                    *np.sin(time* x[1] * 2*np.pi + x[2]%(2*np.pi))
+                                    + x[3] - amplitude)
+        solution = leastsq(optimize_func,
+                        [guess_amplitude, guess_frequency, guess_phase, guess_y0],
+                        full_output=1)
+        est_ampl, est_freq, est_phase, est_y0 = solution[0]
+        if est_ampl < 0:
+            est_ampl = np.abs(est_ampl)
+            est_phase = est_phase + np.pi
+        return (est_ampl, est_freq, est_phase%(2*np.pi))
   
 if __name__ == '__main__':   
     app = QApplication(sys.argv)
-    #if sim:
-        #print("SIMulate is on, no data will be sent to devices\n")
+    sim = True
+    if sim:
+        print("Simulate is on, no data will be sent to devices\n")
     #if debug:
         #print("DEBUGing is on, additional information will be printed to stdout\n")
     this_main_window = main_window()
