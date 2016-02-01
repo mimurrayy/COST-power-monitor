@@ -175,7 +175,10 @@ class sweep_tab(QWidget):
         self.this_sweep.stop()
         
     def find_ref(self):
-        self.ref_label.setText(self.this_sweep.find_ref())
+        if not self.sweeping:
+            self.this_sweep = sweeper()
+            self.ref_label.setText(self.this_sweep.find_ref())
+        
         
 class settings_tab(QWidget):
     def __init__(self):
@@ -332,8 +335,9 @@ class sweeper():
             np.sum(np.sin(np.array(c_phases)))/len(c_phases),
             np.sum(np.cos(np.array(c_phases)))/len(c_phases)
             ) % (2*np.pi)
-        
+        global voltage_ref_phase
         voltage_ref_phase = mean_v_phase
+        global current_ref_phase
         current_ref_phase = mean_c_phase
         return voltage_ref_phase - current_ref_phase
         
