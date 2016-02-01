@@ -8,6 +8,7 @@ import numpy as np
 import pylab
 #import visa
 import ivi
+import usbtmc
 from multiprocessing import Process, Queue, cpu_count
 from scipy.optimize import leastsq,broyden1
 from scipy import stats
@@ -62,6 +63,7 @@ class main_window(QWidget):
 class data_monitor(QVBoxLayout):
     def __init__(self):
         super().__init__()
+        self.results = []
         self.tab_bar = QTabWidget()
         self.graph = pyqtgraph.PlotWidget(name='Plot1')
         self.table = QTableWidget()
@@ -73,26 +75,33 @@ class data_monitor(QVBoxLayout):
         self.update_timer = QtCore.QTimer(self)
         self.update_timer.setInterval(200)
         self.update_timer.timeout.connect(self.update)
+        self.update_timer.start()
 
         self.addWidget(self.tab_bar)
         
     def update(self):
-        while not queue.empty():
-            data = queue.get()
-            print(data)
-        data = self.rand_data
-        update_graph(self.rand_data)
+        while not result_queue.empty():
+            new_data = result_queue.get()
+            if new_data:
+                self.results.append(new_data)
+                self.update_table(new_data)
+                self.update_graph()
         
-    def update_graph(self,data):
+    def update_graph(self):
         """Updates the Graph with new data, 
         this data beeing an 2 dim array of voltage and power"""
-        self.graph.plot(title="power", y=data)
+        voltage = np.array(self.results)[:,0]
+        power = np.array(self.results)[:,3]
+        self.graph.plot(title="power", x=voltage, y=power)
 
     def update_table(self,data):
         """Updates the table with new data. 
         Data is array with voltage, current, phaseshift and power"""
-        fu = "fu"
-        return fu
+        #print(data)
+        self.table.insertRow(self.table.rowCount())
+        for i,d in enumerate(data):
+            self.table.setItem(self.table.rowCount()-1,i,QTableWidgetItem(str(d)))
+        
     
 class ctrl_panel(QVBoxLayout):
     def __init__(self):
@@ -231,7 +240,7 @@ class scope_tab(QWidget):
         super().__init__()
         #visa_rm = visa.ResourceManager()
         #device_list = visa_rm.list_resources()
-        device_list = ["USB0::0x0957::0x175D::MY50340108::INSTR"]
+        device_list = ["USB0::0x0957::0x175D::INSTR"]
         l_main_Layout = QVBoxLayout()
         
         device_group = QGroupBox()
@@ -254,16 +263,21 @@ class scope_tab(QWidget):
         self.setLayout(l_main_Layout)
         
     def choose_scope(self):
-        scope_id = self.device_cbox.currentText()
-        if not sim:
-            scope = ivi.agilent.agilentMSO7104B()
-            scope.initialize(scope_id)
+        print("Nope")
+        #scope_id = self.device_cbox.currentText()
+        #if not sim:
+            #scope = ivi.agilent.agilentMSO7104B()
+            #scope.initialize(scope_id)
         
 
 class sweeper():
     def __init__(self):
+        scope_id = "USB0::0x0957::0x175D::INSTR"
+        if not sim:
+            scope = ivi.agilent.agilentMSO7104B()
+            scope.initialize(scope_id)
         self.data_queue = Queue(10)
-        self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
+        self.io_process = Process(target=self.io_worker, args=(self.data_queue, scope))
         self.fit_process_list = []
         for i in range(cpu_count()-1):
             this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue,)) 
@@ -271,9 +285,11 @@ class sweeper():
     
     
     def start(self):
-        self.io_process.start()
+        if not self.io_process.is_alive():
+            self.io_process.start()
         for fit_process in self.fit_process_list:
-            fit_process.start()
+            if not fit_process.is_alive():
+                fit_process.start()
         
         
     def stop(self):
@@ -331,7 +347,7 @@ class sweeper():
             result = (v_phase, c_phase)
             ref_queue.put(result)
     
-    def io_worker(self, data_queue):
+    def io_worker(self, data_queue, scope):
         """ Gets waveforms from the scope and puts them into the data_queue."""
         while True and not sim:
             data_dict = {}
@@ -349,14 +365,15 @@ class sweeper():
             current_data = data_dict["current"]
             v_amp, v_freq, v_phase = self.fit_func(voltage_data)
             c_amp, c_freq, c_phase = self.fit_func(current_data)
-            voltage_rms = v_amp/np.sqrt(2)
-            current_rms = c_amp/np.sqrt(2)
+            voltage_rms = v_amp/np.sqrt(2) * volcal
+            current_rms = c_amp/np.sqrt(2)/resistance
             phaseshift = np.pi/2 + (current_ref_phase - c_phase) - (voltage_ref_phase - v_phase)
             power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
             result = (voltage_rms, current_rms, phaseshift, power)
             result_queue.put(result)
         
     def fit_func(self,data):
+        data = np.array(data)
         time = data[:,0]
         amplitude = data[:,1]
         guess_mean = np.mean(amplitude)
