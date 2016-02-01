@@ -6,7 +6,7 @@ import configparser
 import time
 import numpy as np
 import pylab
-import visa
+#import visa
 import ivi
 from multiprocessing import Process, Queue, cpu_count
 from scipy.optimize import leastsq,broyden1
@@ -28,6 +28,7 @@ import pyqtgraph
     #debug = False
 
 channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "external voltage"}
+sim = False
 volcal = 2250
 scope_id = ""
 scope = None
@@ -228,9 +229,9 @@ class scope_tab(QWidget):
     def __init__(self):
         """Choose and configure scope"""
         super().__init__()
-        visa_rm = visa.ResourceManager()
-        device_list = visa_rm.list_resources()
-        
+        #visa_rm = visa.ResourceManager()
+        #device_list = visa_rm.list_resources()
+        device_list = ["USB0::0x0957::0x175D::MY50340108::INSTR"]
         l_main_Layout = QVBoxLayout()
         
         device_group = QGroupBox()
@@ -240,10 +241,13 @@ class scope_tab(QWidget):
         
         self.device_cbox = QComboBox()
         self.device_cbox.addItems(device_list)
-        self.device_cbox.currentIndexChanged.connect(self.choose_scope)        
+        
+        self.use_device_btn = QPushButton()
+        self.use_device_btn.clicked.connect(self.choose_scope)        
 
         device_row.addWidget(QLabel("Device: "))
         device_row.addWidget(self.device_cbox)
+        device_row.addWidget(self.use_device_btn)
         device_layout.addLayout(device_row)
         
         l_main_Layout.addWidget(device_group)
@@ -252,7 +256,8 @@ class scope_tab(QWidget):
     def choose_scope(self):
         scope_id = self.device_cbox.currentText()
         if not sim:
-            scope = ivi.agilent.agilentMSO7104B(scope_id)
+            scope = ivi.agilent.agilentMSO7104B()
+            scope.initialize(scope_id)
         
 
 class sweeper():
@@ -376,7 +381,7 @@ class sweeper():
   
 if __name__ == '__main__':   
     app = QApplication(sys.argv)
-    sim = True
+    sim = False
     if sim:
         print("Simulate is on, no data will be sent to devices\n")
     #if debug:
