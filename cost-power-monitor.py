@@ -65,7 +65,7 @@ class data_monitor(QVBoxLayout):
         self.results = []
         self.tab_bar = QTabWidget()
         self.graph = pyqtgraph.PlotWidget(name='Plot1')
-        self.table = QTableWidget()
+        self.table = pyqtgraph.TableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Voltage","Current","Phaseshift","Power"])
         self.tab_bar.addTab(self.graph, "Graph")
