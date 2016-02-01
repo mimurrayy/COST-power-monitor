@@ -29,10 +29,9 @@ import pyqtgraph
     #debug = False
 
 channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "external voltage"}
-sim = False
+sim = True
 volcal = 2250
-scope_id = ""
-scope = None
+scope_id = "USB0::0x0957::0x175D::INSTR"
 resistance = 4.2961608775
 frequency = 13560000
 result_queue = Queue(100)
@@ -120,8 +119,8 @@ class sweep_tab(QWidget):
         """ Don't look at it!"""
         super().__init__()
         
-        self.this_sweep = sweeper()
         l_main_Layout = QVBoxLayout()
+        self.sweeping = False
 
         # Power stuff
         power_group = QGroupBox()
@@ -167,7 +166,10 @@ class sweep_tab(QWidget):
         self.setLayout(l_main_Layout)
         
     def start_sweep(self):
-        self.this_sweep.start()
+        if not self.sweeping:
+            self.this_sweep = sweeper()
+            self.this_sweep.start()
+            self.sweeping = True
 
     def stop_sweep(self):
         self.this_sweep.stop()
@@ -213,6 +215,7 @@ class settings_tab(QWidget):
         self.setLayout(l_main_Layout)
         
     def change_volcal(self):
+        global volcal 
         volcal = int(self.volcal_box.text())
         
 
@@ -231,8 +234,8 @@ class channel_settings(QHBoxLayout):
         self.chan_cbox.currentIndexChanged.connect(self.change_channel)
         
     def change_channel(self):
+        global channel_assignment
         channel_assignment[self.number] = self.chan_cbox.currentText()
-        
         
 class scope_tab(QWidget):
     def __init__(self):
@@ -272,9 +275,8 @@ class scope_tab(QWidget):
 
 class sweeper():
     def __init__(self):
-        scope_id = "USB0::0x0957::0x175D::INSTR"
+        scope = ivi.agilent.agilentMSO7104B()
         if not sim:
-            scope = ivi.agilent.agilentMSO7104B()
             scope.initialize(scope_id)
         self.data_queue = Queue(10)
         self.io_process = Process(target=self.io_worker, args=(self.data_queue, scope))
@@ -304,7 +306,6 @@ class sweeper():
                 trash = self.data_queue.get()
         
     def find_ref(self):
-        self.stop()
         ref_queue = Queue(ref_size*2) # Don't ask
         ref_worker_list = []
         self.io_process.start()
@@ -398,7 +399,7 @@ class sweeper():
   
 if __name__ == '__main__':   
     app = QApplication(sys.argv)
-    sim = False
+    sim = True
     if sim:
         print("Simulate is on, no data will be sent to devices\n")
     #if debug:
