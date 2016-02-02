@@ -358,7 +358,7 @@ class sweeper():
             result = (v_phase, c_phase)
             ref_queue.put(result)
     
-    def io_worker(self, data_queue, scope):
+    def io_worker(self, data_queue):
         """ Gets waveforms from the scope and puts them into the data_queue."""
         scope = ivi.agilent.agilentMSO7104B()
         if not sim:
