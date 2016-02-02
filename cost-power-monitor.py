@@ -120,7 +120,7 @@ class ctrl_panel(QVBoxLayout):
         this_scope_tab = scope_tab()
         self.tab_bar.addTab(this_sweep_tab, "Sweep")
         self.tab_bar.addTab(this_settings_tab, "Settings")
-        self.tab_bar.addTab(this_scope_tab, "Scope")
+        #self.tab_bar.addTab(this_scope_tab, "Scope")
         self.addWidget(self.tab_bar)
 
 class sweep_tab(QWidget):
