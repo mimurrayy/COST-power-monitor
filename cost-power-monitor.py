@@ -288,7 +288,7 @@ class sweeper():
     def __init__(self):
 
         self.data_queue = Queue(10)
-        self.io_process = Process(target=self.io_worker, args=(self.data_queue))
+        self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
         self.fit_process_list = []
         for i in range(cpu_count()-1):
             this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue,)) 
