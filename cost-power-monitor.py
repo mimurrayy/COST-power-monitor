@@ -286,11 +286,9 @@ class scope_tab(QWidget):
 
 class sweeper():
     def __init__(self):
-        scope = ivi.agilent.agilentMSO7104B()
-        if not sim:
-            scope.initialize(scope_id)
+
         self.data_queue = Queue(10)
-        self.io_process = Process(target=self.io_worker, args=(self.data_queue, scope))
+        self.io_process = Process(target=self.io_worker, args=(self.data_queue))
         self.fit_process_list = []
         for i in range(cpu_count()-1):
             this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue,)) 
@@ -362,6 +360,9 @@ class sweeper():
     
     def io_worker(self, data_queue, scope):
         """ Gets waveforms from the scope and puts them into the data_queue."""
+        scope = ivi.agilent.agilentMSO7104B()
+        if not sim:
+            scope.initialize(scope_id)
         while True and not sim:
             data_dict = {}
             scope.measurement.initiate()
