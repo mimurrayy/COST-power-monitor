@@ -288,12 +288,13 @@ class scope_tab(QWidget):
 
 class sweeper():
     def __init__(self):
+        global result_queue
         mgr = multiprocessing.Manager()
         self.data_queue = mgr.Queue(10)
         self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
         self.fit_process_list = []
         for i in range(cpu_count()-1):
-            this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue,)) 
+            this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue, result_queue)) 
             self.fit_process_list.append(this_fit_proccess)
     
     
@@ -358,6 +359,7 @@ class sweeper():
             v_amp, v_freq, v_phase = self.fit_func(voltage_data)
             c_amp, c_freq, c_phase = self.fit_func(current_data)
             result = (v_phase, c_phase)
+            print(result)
             ref_queue.put(result)
     
     def io_worker(self, data_queue):
@@ -370,11 +372,12 @@ class sweeper():
             scope.measurement.initiate()
             for chan_num in channel_assignment:
                 chan_name = channel_assignment[chan_num]
-                data_dict[chan_name] = scope.channels[chan_num-1].measurement.fetch_waveform()
+                if chan_name is not "nothing":
+                    data_dict[chan_name] = scope.channels[chan_num-1].measurement.fetch_waveform()
             data_queue.put(data_dict)
                 
     
-    def fit_worker(self, data_queue):
+    def fit_worker(self, data_queue, result_queue):
         while True:
             data_dict = data_queue.get()
             voltage_data = data_dict["internal voltage"]
@@ -385,7 +388,6 @@ class sweeper():
             current_rms = c_amp/np.sqrt(2)/resistance
             phaseshift = np.pi/2 + (current_ref_phase - c_phase) - (voltage_ref_phase - v_phase)
             power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
-            print(power)
             result = (voltage_rms, current_rms, phaseshift, power)
             result_queue.put(result)
         
@@ -413,7 +415,7 @@ class sweeper():
             est_phase = est_phase + np.pi
         return (est_ampl, est_freq, est_phase%(2*np.pi))
   
-if __name__ == '__main__':   
+if __name__ == '__main__': 
     app = QApplication(sys.argv)
     #if debug:
         #print("DEBUGing is on, additional information will be printed to stdout\n")
