@@ -1,8 +1,3 @@
-from ..Qt import QtGui, QtCore, USE_PYSIDE, USE_PYQT5
-from ..Point import Point
-from .. import functions as fn
-from .GraphicsItem import GraphicsItem
-from .GraphicsObject import GraphicsObject
 from itertools import starmap, repeat
 try:
     from itertools import imap
@@ -10,10 +5,15 @@ except ImportError:
     imap = map
 import numpy as np
 import weakref
+from ..Qt import QtGui, QtCore, USE_PYSIDE, USE_PYQT5
+from ..Point import Point
+from .. import functions as fn
+from .GraphicsItem import GraphicsItem
+from .GraphicsObject import GraphicsObject
 from .. import getConfigOption
-from .. import debug as debug
 from ..pgcollections import OrderedDict
 from .. import debug
+from ..python2_3 import basestring
 
 __all__ = ['ScatterPlotItem', 'SpotItem']
 
@@ -145,7 +145,7 @@ class SymbolAtlas(object):
                 arr = fn.imageToArray(img, copy=False, transpose=False)
             else:
                 (y,x,h,w) = sourceRect.getRect()
-                arr = self.atlasData[x:x+w, y:y+w]
+                arr = self.atlasData[int(x):int(x+w), int(y):int(y+w)]
             rendered[key] = arr
             w = arr.shape[0]
             avgWidth += w
@@ -180,10 +180,10 @@ class SymbolAtlas(object):
             self.atlasRows[-1][2] = x
         height = y + rowheight
 
-        self.atlasData = np.zeros((width, height, 4), dtype=np.ubyte)
+        self.atlasData = np.zeros((int(width), int(height), 4), dtype=np.ubyte)
         for key in symbols:
             y, x, h, w = self.symbolMap[key].getRect()
-            self.atlasData[x:x+w, y:y+h] = rendered[key]
+            self.atlasData[int(x):int(x+w), int(y):int(y+h)] = rendered[key]
         self.atlas = None
         self.atlasValid = True
         self.max_width = maxWidth
@@ -455,8 +455,6 @@ class ScatterPlotItem(GraphicsObject):
                 brushes = brushes[kargs['mask']]
             if len(brushes) != len(dataSet):
                 raise Exception("Number of brushes does not match number of points (%d != %d)" % (len(brushes), len(dataSet)))
-            #for i in xrange(len(brushes)):
-                #self.data[i]['brush'] = fn.mkBrush(brushes[i], **kargs)
             dataSet['brush'] = brushes
         else:
             self.opts['brush'] = fn.mkBrush(*args, **kargs)
@@ -815,7 +813,6 @@ class ScatterPlotItem(GraphicsObject):
             #else:
                 #print "No hit:", (x, y), (sx, sy)
                 #print "       ", (sx-s2x, sy-s2y), (sx+s2x, sy+s2y)
-        #pts.sort(lambda a,b: cmp(b.zValue(), a.zValue()))
         return pts[::-1]
             
 

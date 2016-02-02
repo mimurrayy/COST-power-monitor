@@ -29,7 +29,7 @@ import pyqtgraph
     #debug = False
 
 channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "external voltage"}
-sim = True
+sim = False
 volcal = 2250
 scope_id = "USB0::0x0957::0x175D::INSTR"
 resistance = 4.2961608775
@@ -65,7 +65,7 @@ class data_monitor(QVBoxLayout):
         self.results = []
         self.tab_bar = QTabWidget()
         self.graph = pyqtgraph.PlotWidget(name='Plot1')
-        self.table = pyqtgraph.TableWidget(sortable=False)
+        self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Voltage","Current","Phaseshift","Power"])
         self.tab_bar.addTab(self.graph, "Graph")
@@ -75,8 +75,11 @@ class data_monitor(QVBoxLayout):
         self.update_timer.setInterval(200)
         self.update_timer.timeout.connect(self.update)
         self.update_timer.start()
+    
+        self.power_dspl = QLabel("0 W")
 
         self.addWidget(self.tab_bar)
+        self.addWidget(self.power_dspl)
         
     def update(self):
         while not result_queue.empty():
@@ -85,6 +88,10 @@ class data_monitor(QVBoxLayout):
                 self.results.append(new_data)
                 self.update_table(new_data)
                 self.update_graph()
+                self.update_power_dspl(new_data[-1])
+    
+    def update_power_dspl(self, power):
+        self.power_dspl.setText(str(power) + " W")
         
     def update_graph(self):
         """Updates the Graph with new data, 
@@ -100,6 +107,7 @@ class data_monitor(QVBoxLayout):
         self.table.insertRow(self.table.rowCount())
         for i,d in enumerate(data):
             self.table.setItem(self.table.rowCount()-1,i,QTableWidgetItem(str(d)))
+            
         
     
 class ctrl_panel(QVBoxLayout):
@@ -403,9 +411,6 @@ class sweeper():
   
 if __name__ == '__main__':   
     app = QApplication(sys.argv)
-    sim = True
-    if sim:
-        print("Simulate is on, no data will be sent to devices\n")
     #if debug:
         #print("DEBUGing is on, additional information will be printed to stdout\n")
     this_main_window = main_window()
