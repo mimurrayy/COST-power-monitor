@@ -10,6 +10,7 @@ import pylab
 import ivi
 import usbtmc
 from multiprocessing import Process, Queue, cpu_count
+import multiprocessing
 from scipy.optimize import leastsq,broyden1
 from scipy import stats
 from PyQt5 import QtCore
@@ -282,12 +283,13 @@ class scope_tab(QWidget):
         #if not sim:
             #scope = ivi.agilent.agilentMSO7104B()
             #scope.initialize(scope_id)
-        
+   
+    
 
 class sweeper():
     def __init__(self):
-
-        self.data_queue = Queue(10)
+        mgr = multiprocessing.Manager()
+        self.data_queue = mgr.Queue(10)
         self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
         self.fit_process_list = []
         for i in range(cpu_count()-1):
@@ -406,12 +408,9 @@ class sweeper():
                         [guess_amplitude, guess_frequency, guess_phase, guess_y0],
                         full_output=0)
         est_ampl, est_freq, est_phase, est_y0 = solution[0]
-        print(est_ampl)
-        print('\n\n\n\n')
         if est_ampl < 0:
             est_ampl = np.abs(est_ampl)
             est_phase = est_phase + np.pi
-        print("data")
         return (est_ampl, est_freq, est_phase%(2*np.pi))
   
 if __name__ == '__main__':   
