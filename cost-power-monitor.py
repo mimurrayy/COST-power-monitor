@@ -186,7 +186,7 @@ class sweep_tab(QWidget):
     def find_ref(self):
         if not self.sweeping:
             self.this_sweep = sweeper()
-            self.ref_label.setText(self.this_sweep.find_ref())
+            self.ref_label.setText(str(self.this_sweep.find_ref()))
         
         
 class settings_tab(QWidget):
@@ -330,10 +330,10 @@ class sweeper():
         self.stop()
         v_phases = []
         c_phases = []
-        for phase_tuple in iter(ref_queue.get, None):
+        while not ref_queue.empty():
+            phase_tuple = ref_queue.get()
             v_phases.append(phase_tuple[0])
             c_phases.append(phase_tuple[1])
-            
         # Getting the average of an angle is hard:
         # https://en.wikipedia.org/wiki/Mean_of_circular_quantities
         mean_v_phase = np.arctan2(
@@ -353,13 +353,12 @@ class sweeper():
             
     def ref_worker(self, data_queue, ref_queue):
         for i in range(int(ref_size/cpu_count()-2)):
-            data_dict = data_queue.get(timeout=5)
+            data_dict = data_queue.get(timeout=1)
             voltage_data = data_dict["internal voltage"]
             current_data = data_dict["current"]
             v_amp, v_freq, v_phase = self.fit_func(voltage_data)
             c_amp, c_freq, c_phase = self.fit_func(current_data)
             result = (v_phase, c_phase)
-            print(result)
             ref_queue.put(result)
     
     def io_worker(self, data_queue):
