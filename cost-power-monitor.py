@@ -383,6 +383,7 @@ class sweeper():
             current_rms = c_amp/np.sqrt(2)/resistance
             phaseshift = np.pi/2 + (current_ref_phase - c_phase) - (voltage_ref_phase - v_phase)
             power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
+            print(power)
             result = (voltage_rms, current_rms, phaseshift, power)
             result_queue.put(result)
         
@@ -403,11 +404,14 @@ class sweeper():
                                     + x[3] - amplitude)
         solution = leastsq(optimize_func,
                         [guess_amplitude, guess_frequency, guess_phase, guess_y0],
-                        full_output=1)
+                        full_output=0)
         est_ampl, est_freq, est_phase, est_y0 = solution[0]
+        print(est_ampl)
+        print('\n\n\n\n')
         if est_ampl < 0:
             est_ampl = np.abs(est_ampl)
             est_phase = est_phase + np.pi
+        print("data")
         return (est_ampl, est_freq, est_phase%(2*np.pi))
   
 if __name__ == '__main__':   
