@@ -311,7 +311,7 @@ class sweeper():
         if self.io_process.is_alive():
             self.io_process.terminate()
         for fit_process in self.fit_process_list:
-            while not self.data_queue.empty():
+            while not self.data_queue.empty() and fit_process.is_alive():
                 time.sleep(1)
             if fit_process.is_alive():
                 fit_process.terminate()
@@ -328,7 +328,7 @@ class sweeper():
             this_ref_worker.start()
         for ref_worker in ref_worker_list:
             ref_worker.join()
-        self.stop()
+        self.io_process.terminate()
         v_phases = []
         c_phases = []
         while not ref_queue.empty():
