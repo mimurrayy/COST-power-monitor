@@ -181,6 +181,7 @@ class sweep_tab(QWidget):
             self.sweeping = True
 
     def stop_sweep(self):
+        self.sweeping = False
         self.this_sweep.stop()
         
     def find_ref(self):
