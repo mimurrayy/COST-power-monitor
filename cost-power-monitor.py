@@ -89,7 +89,7 @@ class data_monitor(QVBoxLayout):
                 self.results.append(new_data)
                 self.update_table(new_data)
                 self.update_power_dspl(new_data[-1])
-            self.update_graph()
+        #self.update_graph()
     
     def update_power_dspl(self, power):
         self.power_dspl.setText(str(power) + " W")
@@ -97,9 +97,10 @@ class data_monitor(QVBoxLayout):
     def update_graph(self):
         """Updates the Graph with new data, 
         this data beeing an 2 dim array of voltage and power"""
-        voltage = np.array(self.results)[:,0]
-        power = np.array(self.results)[:,3]
-        self.graph.plot(title="power", x=voltage, y=power)
+        if self.results:
+            voltage = np.array(self.results)[:,0]
+            power = np.array(self.results)[:,3]
+            self.graph.plot(title="power", x=voltage, y=power)
 
     def update_table(self,data):
         """Updates the table with new data. 
