@@ -88,7 +88,10 @@ class data_monitor(QVBoxLayout):
         save_btn.clicked.connect(self.save_data)
         copy_btn = QPushButton("Copy to Clipboard")
         copy_btn.clicked.connect(self.copy_data)
+        plot_btn = QPushButton("Plot Data")
+        plot_btn.clicked.connect(self.update_graph)
         btn_layout.addWidget(clear_btn)
+        btn_layout.addWidget(plot_btn)
         btn_layout.addWidget(copy_btn)
         btn_layout.addWidget(save_btn)
         
@@ -137,7 +140,7 @@ class data_monitor(QVBoxLayout):
         #self.update_graph()
     
     def update_power_dspl(self, power):
-        self.power_dspl.setText(str(power) + " W")
+        self.power_dspl.setText("Power: " + str(power) + " W")
         
     def update_graph(self):
         """Updates the Graph with new data, 
