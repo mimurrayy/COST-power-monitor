@@ -32,13 +32,16 @@ import pyqtgraph
 channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "external voltage"}
 sim = False
 volcal = 2250
+volcal_std = 50
 scope_id = "USB0::0x0957::0x175D::INSTR"
 resistance = 4.2961608775
 frequency = 13560000
 result_queue = Queue(100)
 voltage_ref_phase = 0
+voltage_ref_phase_std = 0
 current_ref_phase = 0
-ref_size = 20 # Number of phase reference points to average over
+current_ref_phase_std = 0
+ref_size = 30 # Number of phase reference points to average over
 
 class main_window(QWidget):  
     def __init__(self):
@@ -56,7 +59,7 @@ class main_window(QWidget):
         #l_data_monitor.addWidget(graph)
         
         self.setLayout(l_main_Layout)
-        self.setGeometry(300, 300, 1300, 400)
+        self.setGeometry(300, 300, 1000, 400)
         self.setWindowTitle("COST Power Monitor")
         self.show() 
 
@@ -69,19 +72,61 @@ class data_monitor(QVBoxLayout):
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Voltage","Current","Phaseshift","Power"])
-        self.tab_bar.addTab(self.graph, "Graph")
         self.tab_bar.addTab(self.table, "Table")
+        self.tab_bar.addTab(self.graph, "Graph")
 
         self.update_timer = QtCore.QTimer(self)
         self.update_timer.setInterval(500)
         self.update_timer.timeout.connect(self.update)
         self.update_timer.start()
     
-        self.power_dspl = QLabel("0 W")
-
-        self.addWidget(self.tab_bar)
-        self.addWidget(self.power_dspl)
+        #btn_group = QGroupBox()
+        btn_layout = QHBoxLayout()
+        clear_btn = QPushButton("Clear")
+        clear_btn.clicked.connect(self.clear_data)
+        save_btn = QPushButton("Save to Disk")
+        save_btn.clicked.connect(self.save_data)
+        copy_btn = QPushButton("Copy to Clipboard")
+        copy_btn.clicked.connect(self.copy_data)
+        btn_layout.addWidget(clear_btn)
+        btn_layout.addWidget(copy_btn)
+        btn_layout.addWidget(save_btn)
         
+        #power_group.setLayout(power_layout)
+        
+        #show_power_row = QHBoxLayout()
+    
+        self.power_dspl = QLabel("0 W")
+        self.addWidget(self.power_dspl)
+        self.addWidget(self.tab_bar)
+        self.addLayout(btn_layout)
+        
+     
+    def clear_data(self):
+        global result_queue
+        result_queue.close()
+        result_queue = Queue(100) 
+        self.table.setRowCount(0)
+        
+    def save_data(self):
+        seperator = "\t "
+        next_line = " \n"
+        filename = QFileDialog.getSaveFileName(caption='Save File', filter='*.txt')
+        if filename:
+            f = open(filename[0] + ".txt", 'w')
+            header =  "Voltage" + seperator + "Current" + seperator + "Phaseshift" + seperator + "Power" + next_line
+            lines = [header]
+            for x in range(self.table.rowCount()):
+                this_line = ""
+                for y in range(self.table.columnCount()):
+                    this_line = this_line + str(self.table.item(x,y).text()) + seperator
+                lines.append(this_line + next_line)
+            f.writelines(lines)
+                    
+                
+    def copy_data(self):
+        return "Nope"
+     
     def update(self):
         while not result_queue.empty():
             new_data = result_queue.get()
@@ -219,9 +264,13 @@ class settings_tab(QWidget):
         self.volcal_box = QLineEdit(str(volcal))
         self.volcal_box.setMaximumWidth(100)
         self.volcal_box.textChanged.connect(self.change_volcal)
+        self.volcal_std_label = QLabel()
         volcal_get = QPushButton("Find")
+        volcal_get.clicked.connect(self.get_volcal)
         volcal_row.addWidget(QLabel("Callibration Factor: "))
         volcal_row.addWidget(self.volcal_box)
+        volcal_row.addWidget(self.volcal_std_label)
+        volcal_row.addWidget(volcal_get)
         
         volcal_layout.addLayout(volcal_row)
         l_main_Layout.addWidget(volcal_group)
@@ -230,7 +279,13 @@ class settings_tab(QWidget):
         
     def change_volcal(self):
         global volcal 
-        volcal = int(self.volcal_box.text())
+        volcal = float(self.volcal_box.text())
+        
+    def get_volcal(self):
+        self.this_sweep = sweeper()
+        self.volcal_box.setText(str(self.this_sweep.calibrate()))
+        self.volcal_std_label.setText(str(volcal_std))
+        
         
 
   
@@ -292,7 +347,7 @@ class sweeper():
     def __init__(self):
         global result_queue
         mgr = multiprocessing.Manager()
-        self.data_queue = mgr.Queue(10)
+        self.data_queue = mgr.Queue(ref_size)
         self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
         self.fit_process_list = []
         for i in range(cpu_count()-1):
@@ -318,24 +373,41 @@ class sweeper():
                 fit_process.terminate()
             while not self.data_queue.empty():
                 trash = self.data_queue.get()
+    
+    def calibrate(self):
+        cal_queue = Queue(ref_size*2) # Don't ask
+        self.io_process.start()
+        this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue, cal_queue, False, True, ref_size)) 
+        this_fit_proccess.start()
+        this_fit_proccess.join()
+        self.io_process.terminate()
         
+        volcal_list = []
+        while not cal_queue.empty():
+            this_result = cal_queue.get()
+            this_volcal = this_result[1]/this_result[0]
+            volcal_list.append(this_volcal)
+        
+        global volcal, volcal_std
+        volcal = np.average(volcal_list)
+        volcal_std = np.std(volcal_list)
+    
+        return volcal
+    
     def find_ref(self):
         ref_queue = Queue(ref_size*2) # Don't ask
-        ref_worker_list = []
         self.io_process.start()
-        for i in range(int(cpu_count()-1)):
-            this_ref_worker = Process(target=self.ref_worker, args=(self.data_queue, ref_queue))
-            ref_worker_list.append(this_ref_worker)
-            this_ref_worker.start()
-        for ref_worker in ref_worker_list:
-            ref_worker.join()
+        this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue, ref_queue, True, False, ref_size)) 
+        this_fit_proccess.start()
+        this_fit_proccess.join()
         self.io_process.terminate()
+        
         v_phases = []
         c_phases = []
         while not ref_queue.empty():
-            phase_tuple = ref_queue.get()
-            v_phases.append(phase_tuple[0])
-            c_phases.append(phase_tuple[1])
+            this_result = ref_queue.get()
+            v_phases.append(this_result[2])
+            c_phases.append(this_result[5])
         # Getting the average of an angle is hard:
         # https://en.wikipedia.org/wiki/Mean_of_circular_quantities
         mean_v_phase = np.arctan2(
@@ -346,22 +418,26 @@ class sweeper():
             np.sum(np.sin(np.array(c_phases)))/len(c_phases),
             np.sum(np.cos(np.array(c_phases)))/len(c_phases)
             ) % (2*np.pi)
-        global voltage_ref_phase
+        v_phase_diff_sum = 0
+        c_phase_diff_sum = 0
+        for angle in v_phases:
+            # Next line seems to work. It's all very complicated.
+            v_phase_diff_sum = (v_phase_diff_sum
+                            + np.square(np.diff(np.unwrap([angle, mean_v_phase])))[0])
+        v_phase_std = np.sqrt(v_phase_diff_sum/len(v_phases))
+        for angle in c_phases:
+            # Next line seems to work. It's all very complicated.
+            c_phase_diff_sum = (c_phase_diff_sum
+                            + np.square(np.diff(np.unwrap([angle, mean_c_phase])))[0])
+        c_phase_std = np.sqrt(c_phase_diff_sum/len(c_phases))
+        global voltage_ref_phase, voltage_ref_phase_std
         voltage_ref_phase = mean_v_phase
-        global current_ref_phase
+        voltage_ref_phase_std = v_phase_std
+        global current_ref_phase, current_ref_phase_std
         current_ref_phase = mean_c_phase
-        return voltage_ref_phase - current_ref_phase
+        current_ref_phase_std = c_phase_std
+        return str(voltage_ref_phase - current_ref_phase) + " +- " + str(v_phase_std + c_phase_std) 
         
-            
-    def ref_worker(self, data_queue, ref_queue):
-        for i in range(int(ref_size/cpu_count()-2)):
-            data_dict = data_queue.get(timeout=1)
-            voltage_data = data_dict["internal voltage"]
-            current_data = data_dict["current"]
-            v_amp, v_freq, v_phase = self.fit_func(voltage_data)
-            c_amp, c_freq, c_phase = self.fit_func(current_data)
-            result = (v_phase, c_phase)
-            ref_queue.put(result)
     
     def io_worker(self, data_queue):
         """ Gets waveforms from the scope and puts them into the data_queue."""
@@ -378,18 +454,36 @@ class sweeper():
             data_queue.put(data_dict)
                 
     
-    def fit_worker(self, data_queue, result_queue):
-        while True:
+    def fit_worker(self, data_queue, result_queue, raw=False, cal=False, num=-1):
+        """Takes data_queue and fits a sinus. Returns 4-tuple of voltage,current, phaseshift and power if raw=False,
+        else a 6 tuple of amp, freq and phase for both voltage and current.
+        Returns a 2-tuple if cal=True: internal voltage amplitude, external voltage amplitude.
+        Use num to restict the amount of data the worker should fetech.
+        Use cal to callibrate internal/external voltage probe"""
+        cont = True
+        while cont:
+            if num != -1:
+                num = num -1
+                if num == 0:
+                    cont = False
             data_dict = data_queue.get()
             voltage_data = data_dict["internal voltage"]
-            current_data = data_dict["current"]
             v_amp, v_freq, v_phase = self.fit_func(voltage_data)
-            c_amp, c_freq, c_phase = self.fit_func(current_data)
             voltage_rms = v_amp/np.sqrt(2) * volcal
-            current_rms = c_amp/np.sqrt(2)/resistance
-            phaseshift = np.pi/2 + (current_ref_phase - c_phase) - (voltage_ref_phase - v_phase)
-            power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
-            result = (voltage_rms, current_rms, phaseshift, power)
+            if not cal:
+                current_data = data_dict["current"]
+                c_amp, c_freq, c_phase = self.fit_func(current_data)
+                current_rms = c_amp/np.sqrt(2)/resistance
+                phaseshift = np.pi/2 + (current_ref_phase - c_phase) - (voltage_ref_phase - v_phase)
+                power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
+            if cal:
+                external_voltage_data = data_dict["external voltage"]
+                ext_v_amp, ext_v_freq, ext_v_phase = self.fit_func(external_voltage_data)
+                result = (v_amp, ext_v_amp)
+            elif raw:
+                result = (v_amp, v_freq, v_phase, c_amp, c_freq, c_phase)
+            if not cal and not raw:
+                result = (voltage_rms, current_rms, phaseshift, power)
             result_queue.put(result)
         
     def fit_func(self,data):
