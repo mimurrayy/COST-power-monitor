@@ -73,7 +73,7 @@ class data_monitor(QVBoxLayout):
         self.tab_bar.addTab(self.table, "Table")
 
         self.update_timer = QtCore.QTimer(self)
-        self.update_timer.setInterval(200)
+        self.update_timer.setInterval(500)
         self.update_timer.timeout.connect(self.update)
         self.update_timer.start()
     
@@ -88,8 +88,8 @@ class data_monitor(QVBoxLayout):
             if new_data:
                 self.results.append(new_data)
                 self.update_table(new_data)
-                self.update_graph()
                 self.update_power_dspl(new_data[-1])
+            self.update_graph()
     
     def update_power_dspl(self, power):
         self.power_dspl.setText(str(power) + " W")
