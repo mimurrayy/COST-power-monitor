@@ -225,7 +225,7 @@ class sweep_tab(QWidget):
         
     def start_sweep(self):
         if not self.sweeping:
-            self.this_sweep = sweeper(channel_assignment, volcal)
+            self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
             self.this_sweep.start()
             self.sweeping = True
 
@@ -235,8 +235,10 @@ class sweep_tab(QWidget):
         
     def find_ref(self):
         if not self.sweeping:
-            self.this_sweep = sweeper(channel_assignment, volcal)
-            self.ref_label.setText(str(self.this_sweep.find_ref()))
+            global voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std
+            self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
+            voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std = self.this_sweep.find_ref()
+            self.ref_label.setText(str(voltage_ref_phase - current_ref_phase) + " +- " + str(voltage_ref_phase_std + current_ref_phase_std))
         
         
 class settings_tab(QWidget):
@@ -285,7 +287,7 @@ class settings_tab(QWidget):
         volcal = float(self.volcal_box.text())
         
     def get_volcal(self):
-        self.this_sweep = sweeper(channel_assignment, volcal)
+        self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
         self.volcal_box.setText(str(self.this_sweep.calibrate()))
         self.volcal_std_label.setText(str(volcal_std))
         
@@ -351,11 +353,13 @@ class scope_tab(QWidget):
     
 
 class sweeper():
-    def __init__(self, channels, volcal):
+    def __init__(self, channels, volcal, v_ref, c_ref):
         global result_queue
         mgr = multiprocessing.Manager()
         self.channels = channels
         self.volcal = volcal
+        self.v_ref = v_ref
+        self.c_ref = c_ref
         self.data_queue = mgr.Queue(ref_size)
         self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
         self.fit_process_list = []
@@ -445,7 +449,9 @@ class sweeper():
         global current_ref_phase, current_ref_phase_std
         current_ref_phase = mean_c_phase
         current_ref_phase_std = c_phase_std
-        return str(voltage_ref_phase - current_ref_phase) + " +- " + str(v_phase_std + c_phase_std) 
+        self.v_ref = voltage_ref_phase
+        self.c_ref = current_ref_phase
+        return (voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std) 
         
     
     def io_worker(self, data_queue):
@@ -484,7 +490,7 @@ class sweeper():
                 current_data = data_dict["current"]
                 c_amp, c_freq, c_phase = self.fit_func(current_data)
                 current_rms = c_amp/np.sqrt(2)/resistance
-                phaseshift = np.pi/2 + (current_ref_phase - c_phase) - (voltage_ref_phase - v_phase)
+                phaseshift = np.pi/2 + (self.c_ref - c_phase) - (self.v_ref - v_phase)
                 power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
             if cal:
                 external_voltage_data = data_dict["external voltage"]
