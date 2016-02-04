@@ -225,7 +225,7 @@ class sweep_tab(QWidget):
         
     def start_sweep(self):
         if not self.sweeping:
-            self.this_sweep = sweeper()
+            self.this_sweep = sweeper(channel_assignment, volcal)
             self.this_sweep.start()
             self.sweeping = True
 
@@ -235,7 +235,7 @@ class sweep_tab(QWidget):
         
     def find_ref(self):
         if not self.sweeping:
-            self.this_sweep = sweeper()
+            self.this_sweep = sweeper(channel_assignment, volcal)
             self.ref_label.setText(str(self.this_sweep.find_ref()))
         
         
@@ -285,7 +285,7 @@ class settings_tab(QWidget):
         volcal = float(self.volcal_box.text())
         
     def get_volcal(self):
-        self.this_sweep = sweeper()
+        self.this_sweep = sweeper(channel_assignment, volcal)
         self.volcal_box.setText(str(self.this_sweep.calibrate()))
         self.volcal_std_label.setText(str(volcal_std))
         
@@ -307,7 +307,11 @@ class channel_settings(QHBoxLayout):
         
     def change_channel(self):
         global channel_assignment
-        channel_assignment[self.number] = self.chan_cbox.currentText()
+        this_chan_ass = channel_assignment
+        
+        this_chan_ass[self.number] = self.chan_cbox.currentText()
+        channel_assignment = this_chan_ass
+
         
 class scope_tab(QWidget):
     def __init__(self):
@@ -347,9 +351,11 @@ class scope_tab(QWidget):
     
 
 class sweeper():
-    def __init__(self):
+    def __init__(self, channels, volcal):
         global result_queue
         mgr = multiprocessing.Manager()
+        self.channels = channels
+        self.volcal = volcal
         self.data_queue = mgr.Queue(ref_size)
         self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
         self.fit_process_list = []
@@ -451,9 +457,9 @@ class sweeper():
         while True and not sim:
             data_dict = {}
             scope.measurement.initiate()
-            for chan_num in channel_assignment:
-                chan_name = channel_assignment[chan_num]
-                if chan_name is not "nothing":
+            for chan_num in self.channels:
+                chan_name = self.channels[chan_num]
+                if chan_name != "nothing":
                     data_dict[chan_name] = scope.channels[chan_num-1].measurement.fetch_waveform()
             data_queue.put(data_dict)
                 
@@ -473,7 +479,7 @@ class sweeper():
             data_dict = data_queue.get()
             voltage_data = data_dict["internal voltage"]
             v_amp, v_freq, v_phase = self.fit_func(voltage_data)
-            voltage_rms = v_amp/np.sqrt(2) * volcal
+            voltage_rms = v_amp/np.sqrt(2) * self.volcal
             if not cal:
                 current_data = data_dict["current"]
                 c_amp, c_freq, c_phase = self.fit_func(current_data)
