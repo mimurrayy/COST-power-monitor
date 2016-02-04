@@ -447,6 +447,7 @@ class sweeper():
         scope = ivi.agilent.agilentMSO7104B()
         if not sim:
             scope.initialize(scope_id)
+            scope.set_timeout(5)
         while True and not sim:
             data_dict = {}
             scope.measurement.initiate()
