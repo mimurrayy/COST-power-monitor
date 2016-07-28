@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import sys
 import string
@@ -6,6 +6,7 @@ import configparser
 import time
 import numpy as np
 import pylab
+import datetime
 #import visa
 import ivi
 import usbtmc
@@ -29,7 +30,7 @@ import pyqtgraph
 #else:
     #debug = False
 
-channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "external voltage"}
+channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "nothing"}
 sim = False
 volcal = 2250
 volcal_std = 50
@@ -116,9 +117,19 @@ class data_monitor(QVBoxLayout):
         next_line = " \n"
         filename = QFileDialog.getSaveFileName(caption='Save File', filter='*.txt')
         if filename:
-            f = open(filename[0] + ".txt", 'w')
-            header =  "Voltage" + seperator + "Current" + seperator + "Phaseshift" + seperator + "Power" + next_line
-            lines = [header]
+            f = open(filename[0], 'w')
+            phaseshift = (str(voltage_ref_phase - current_ref_phase) + " +- " + 
+                str(voltage_ref_phase_std + current_ref_phase_std))
+            header = (  "## cost-power-monitor file ## \n"+
+                        "# " + str(datetime.datetime.now()) + "\n" +
+                        "# Reference phaseshift: " + phaseshift + "\n" +
+                        "# Calibration factor: " + str(volcal) + "\n" +
+                        "# Channel Settings: " +  str(channel_assignment) + "\n\n")
+                    
+            table_header = ("Voltage" + seperator + "Current" +  seperator + 
+                "Phaseshift" + seperator + "Power" + next_line)
+
+            lines = [header, table_header]
             for x in range(self.table.rowCount()):
                 this_line = ""
                 for y in range(self.table.columnCount()):
@@ -157,6 +168,7 @@ class data_monitor(QVBoxLayout):
         self.table.insertRow(self.table.rowCount())
         for i,d in enumerate(data):
             self.table.setItem(self.table.rowCount()-1,i,QTableWidgetItem(str(d)))
+        self.table.scrollToBottom()
             
         
     
@@ -186,9 +198,9 @@ class sweep_tab(QWidget):
         power_group.setLayout(power_layout)
         
         show_power_row = QHBoxLayout()
-        self.power_label = QLabel("0 W")
-        show_power_row.addWidget(QLabel("Power:"))
-        show_power_row.addWidget(self.power_label)
+        #self.power_label = QLabel("0 W")
+        show_power_row.addWidget(QLabel("Start/Pause Measurement"))
+       # show_power_row.addWidget(self.power_label)
         power_layout.addLayout(show_power_row)
         
         power_btn_row = QHBoxLayout()
