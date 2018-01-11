@@ -42,7 +42,7 @@ voltage_ref_phase = 0
 voltage_ref_phase_std = 0
 current_ref_phase = 0
 current_ref_phase_std = 0
-ref_size = 30 # Number of phase reference points to average over
+ref_size = 5 # Number of phase reference points to average over
 
 class main_window(QWidget):  
     def __init__(self):
@@ -71,8 +71,8 @@ class data_monitor(QVBoxLayout):
         self.tab_bar = QTabWidget()
         self.graph = pyqtgraph.PlotWidget(name='Plot1')
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Voltage","Current","Phaseshift","Power"])
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["Voltage","Current","Phaseshift","Power","Time"])
         self.tab_bar.addTab(self.table, "Table")
         self.tab_bar.addTab(self.graph, "Graph")
 
@@ -127,7 +127,7 @@ class data_monitor(QVBoxLayout):
                         "# Channel Settings: " +  str(channel_assignment) + "\n\n")
                     
             table_header = ("Voltage" + seperator + "Current" +  seperator + 
-                "Phaseshift" + seperator + "Power" + next_line)
+                "Phaseshift" + seperator + "Power" + seperator + "Time" + next_line)
 
             lines = [header, table_header]
             for x in range(self.table.rowCount()):
@@ -168,6 +168,8 @@ class data_monitor(QVBoxLayout):
         self.table.insertRow(self.table.rowCount())
         for i,d in enumerate(data):
             self.table.setItem(self.table.rowCount()-1,i,QTableWidgetItem(str(d)))
+        time = datetime.datetime.now().time().strftime("%H:%M:%S")
+        self.table.setItem(self.table.rowCount()-1,self.table.columnCount()-1,QTableWidgetItem(str(time)))        
         self.table.scrollToBottom()
             
         
@@ -445,6 +447,11 @@ class sweeper():
             ) % (2*np.pi)
         v_phase_diff_sum = 0
         c_phase_diff_sum = 0
+        print(v_phases)
+        print()
+        print(c_phases)
+        print()
+        print(np.array(v_phases)-np.array(c_phases))
         for angle in v_phases:
             # Next line seems to work. It's all very complicated.
             v_phase_diff_sum = (v_phase_diff_sum
