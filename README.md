@@ -33,7 +33,7 @@ Edit e.g. /etc/udev/rules.d/12-scope.rules and add:
 
 Then, add your user to the plugdev group:
 
-sudo usermod <username> -aG plugdev
+sudo usermod [username] -aG plugdev
   
 A reboot might be necessary before the change takes effect.
 
