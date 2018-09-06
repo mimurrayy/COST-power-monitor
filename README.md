@@ -30,7 +30,7 @@ Edit e.g. /etc/udev/rules.d/12-scope.rules and add (e.g. for an Agilent DSO7104B
 	KERNEL=="usbtmc/*",       MODE="0660", GROUP="plugdev"
 	KERNEL=="usbtmc[0-9]*",   MODE="0660", GROUP="plugdev"
 ```
-You will find the appropriate vendor and product ids using lsubs.
+You will find the appropriate vendor and product ids using lsusb.
 
 Then, add your user to the plugdev group:
 
