@@ -115,16 +115,18 @@ class data_monitor(QVBoxLayout):
     def save_data(self):
         seperator = "\t "
         next_line = " \n"
-        filename = QFileDialog.getSaveFileName(caption='Save File', filter='*.txt')
-        if filename:
-            f = open(filename[0], 'w')
+        filename = QFileDialog.getSaveFileName(caption='Save File',
+            filter='*.txt')
+
+        if filename[0]:
             phaseshift = (str(voltage_ref_phase - current_ref_phase) + " +- " + 
                 str(voltage_ref_phase_std + current_ref_phase_std))
-            header = (  "## cost-power-monitor file ## \n"+
-                        "# " + str(datetime.datetime.now()) + "\n" +
-                        "# Reference phaseshift: " + phaseshift + "\n" +
-                        "# Calibration factor: " + str(volcal) + "\n" +
-                        "# Channel Settings: " +  str(channel_assignment) + "\n\n")
+
+            header = ("## cost-power-monitor file ## \n"+
+                      "# " + str(datetime.datetime.now()) + "\n" +
+                      "# Reference phaseshift: " + phaseshift + "\n" +
+                      "# Calibration factor: " + str(volcal) + "\n" +
+                      "# Channel Settings: " +  str(channel_assignment) + "\n\n")
                     
             table_header = ("Voltage" + seperator + "Current" +  seperator + 
                 "Phaseshift" + seperator + "Power" + seperator + "Time" + next_line)
@@ -135,9 +137,19 @@ class data_monitor(QVBoxLayout):
                 for y in range(self.table.columnCount()):
                     this_line = this_line + str(self.table.item(x,y).text()) + seperator
                 lines.append(this_line + next_line)
-            f.writelines(lines)
-                    
-                
+
+            try:
+                f = open(filename[0], 'w')
+                f.writelines(lines)
+            except:
+                 mb = QMessageBox()
+                 mb.setIcon(QMessageBox.Information)
+                 mb.setWindowTitle('Error')
+                 mb.setText('Could not save file.')
+                 mb.setStandardButtons(QMessageBox.Ok)
+                 mb.exec_()
+
+
     def copy_data(self):
         return "Nope"
      
