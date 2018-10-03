@@ -11,7 +11,7 @@ We will assume Installation under Ubuntu 18.04. Other Linux Distributions should
 scipy, pylab(from matplotlib), numpy, python-ivi, python-usbtmc, pyusb, PyQt5
 
 ```bash
-sudo apt install python3-pip python3-numpy python3-matplotlib python3-scipy python3-pyqt5
+sudo apt install python3-usb python3-pip python3-numpy python3-matplotlib python3-scipy python3-pyqt5
 sudo pip3 install python-ivi python-usbtmc
 ```
 
