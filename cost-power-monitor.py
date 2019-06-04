@@ -19,17 +19,6 @@ from PyQt5.QtWidgets import *
 import pyqtgraph
 # importing this after pyqt5 tells pyqtgraph to use qt5 instead of 4
 
-#cfg = configparser.ConfigParser()
-#cfg.read('./placid.cfg')
-#if cfg.get("debug", "sim") == "True" or cfg.get("debug", "sim") == "on":
-    #sim = True
-#else:
-    #sim = False
-#if cfg.get("debug", "debug") == "True" or cfg.get("debug", "debug") == "on":
-    #debug = True
-#else:
-    #debug = False
-
 channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "nothing"}
 sim = False
 volcal = 2250
@@ -42,7 +31,7 @@ voltage_ref_phase = 0
 voltage_ref_phase_std = 0
 current_ref_phase = 0
 current_ref_phase_std = 0
-ref_size = 5 # Number of phase reference points to average over
+ref_size = 10 # Number of phase reference points to average over
 
 class main_window(QWidget):  
     def __init__(self):
@@ -390,7 +379,9 @@ class sweeper():
         self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
         self.fit_process_list = []
         for i in range(cpu_count()-1):
-            this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue, result_queue)) 
+            this_fit_proccess = Process(target=fit_worker,
+                args=(self.data_queue, result_queue, volcal, v_ref, c_ref))
+
             self.fit_process_list.append(this_fit_proccess)
     
     
@@ -411,23 +402,31 @@ class sweeper():
             if fit_process.is_alive():
                 fit_process.terminate()
             while not self.data_queue.empty():
-                trash = self.data_queue.get()
+                self.data_queue.get()
     
     def calibrate(self):
-        cal_queue = Queue(ref_size*2) # Don't ask
-        self.io_process.start()
-        this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue, cal_queue, False, True, ref_size)) 
-        this_fit_proccess.start()
-        this_fit_proccess.join()
-        self.io_process.terminate()
-        
-        volcal_list = []
-        while not cal_queue.empty():
-            this_result = cal_queue.get()
-            this_volcal = this_result[1]/this_result[0]
-            volcal_list.append(this_volcal)
-        
         global volcal, volcal_std
+        ref_queue = Queue(ref_size*2) # Don't ask
+        self.io_process.start()
+        volcal_list = []
+        for i in range(ref_size):
+            data_dict = self.data_queue.get()
+            try:
+                external_voltage_data = data_dict["external voltage"]
+            except KeyError:
+                print("Channel 'External Voltage' not set.")
+                volcal_std = "Error, 'External Voltage' not set."
+                self.io_process.terminate()
+                return 0
+            voltage_data = data_dict["internal voltage"]
+            v_amp, v_freq, v_phase = fit_func(voltage_data)
+            ext_v_amp, ext_v_freq, ext_v_phase = fit_func(external_voltage_data)
+            volcal_list.append(ext_v_amp/v_amp)
+
+        self.io_process.terminate()
+        while not self.data_queue.empty():
+            self.data_queue.get()
+
         volcal = np.average(volcal_list)
         volcal_std = np.std(volcal_list)
     
@@ -436,17 +435,21 @@ class sweeper():
     def find_ref(self):
         ref_queue = Queue(ref_size*2) # Don't ask
         self.io_process.start()
-        this_fit_proccess = Process(target=self.fit_worker, args=(self.data_queue, ref_queue, True, False, ref_size)) 
-        this_fit_proccess.start()
-        this_fit_proccess.join()
-        self.io_process.terminate()
-        
         v_phases = []
         c_phases = []
-        while not ref_queue.empty():
-            this_result = ref_queue.get()
-            v_phases.append(this_result[2])
-            c_phases.append(this_result[5])
+        for i in range(ref_size):
+            data_dict = self.data_queue.get()
+            voltage_data = data_dict["internal voltage"]
+            v_amp, v_freq, v_phase = fit_func(voltage_data)
+            current_data = data_dict["current"]
+            c_amp, c_freq, c_phase = fit_func(current_data)
+            v_phases.append(v_phase)
+            c_phases.append(c_phase)
+
+        self.io_process.terminate()
+        while not self.data_queue.empty():
+            self.data_queue.get()
+
         # Getting the average of an angle is hard:
         # https://en.wikipedia.org/wiki/Mean_of_circular_quantities
         mean_v_phase = np.arctan2(
@@ -501,61 +504,52 @@ class sweeper():
             data_queue.put(data_dict)
                 
     
-    def fit_worker(self, data_queue, result_queue, raw=False, cal=False, num=-1):
-        """Takes data_queue and fits a sinus. Returns 4-tuple of voltage,current, phaseshift and power if raw=False,
-        else a 6 tuple of amp, freq and phase for both voltage and current.
-        Returns a 2-tuple if cal=True: internal voltage amplitude, external voltage amplitude.
-        Use num to restict the amount of data the worker should fetech.
-        Use cal to callibrate internal/external voltage probe"""
-        cont = True
-        while cont:
-            if num != -1:
-                num = num -1
-                if num == 0:
-                    cont = False
-            data_dict = data_queue.get()
-            voltage_data = data_dict["internal voltage"]
-            v_amp, v_freq, v_phase = self.fit_func(voltage_data)
-            voltage_rms = v_amp/np.sqrt(2) * self.volcal
-            if not cal:
-                current_data = data_dict["current"]
-                c_amp, c_freq, c_phase = self.fit_func(current_data)
-                current_rms = c_amp/np.sqrt(2)/resistance
-                phaseshift = np.pi/2 + (self.c_ref - c_phase) - (self.v_ref - v_phase)
-                power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
-            if cal:
-                external_voltage_data = data_dict["external voltage"]
-                ext_v_amp, ext_v_freq, ext_v_phase = self.fit_func(external_voltage_data)
-                result = (v_amp, ext_v_amp)
-            elif raw:
-                result = (v_amp, v_freq, v_phase, c_amp, c_freq, c_phase)
-            if not cal and not raw:
-                result = (voltage_rms, current_rms, phaseshift, power)
-            result_queue.put(result)
-        
-    def fit_func(self,data):
-        data = np.array(data)
-        time = data[:,0]
-        amplitude = data[:,1]
-        guess_mean = np.mean(amplitude)
-        guess_amplitude = np.amax(amplitude)
-        guess_phase = 0
-        guess_y0 = 0
-        guess_frequency = frequency
-        data_first_guess = (guess_amplitude
-                    *np.sin(time*guess_frequency*2*np.pi + guess_phase%(2*np.pi))
-                    + guess_mean)
-        optimize_func = lambda x: (x[0]
-                                    *np.sin(time* x[1] * 2*np.pi + x[2]%(2*np.pi))
-                                    + x[3] - amplitude)
-        solution = leastsq(optimize_func,
-                        [guess_amplitude, guess_frequency, guess_phase, guess_y0],
-                        full_output=0)
-        est_ampl, est_freq, est_phase, est_y0 = solution[0]
-        if est_ampl < 0:
-            est_ampl = np.abs(est_ampl)
-            est_phase = est_phase + np.pi
-        return (est_ampl, est_freq, est_phase%(2*np.pi))
+def fit_worker(data_queue, result_queue, volcal, v_ref, c_ref):
+    """Takes data_queue and fits a sinus. Returns 4-tuple of voltage,current, phaseshift and power if raw=False,
+    else a 6 tuple of amp, freq and phase for both voltage and current.
+    Returns a 2-tuple if cal=True: internal voltage amplitude, external voltage amplitude.
+    Use num to restict the amount of data the worker should fetech.
+    Use cal to callibrate internal/external voltage probe"""
+    while True:
+        data_dict = data_queue.get()
+
+        voltage_data = data_dict["internal voltage"]
+        v_amp, v_freq, v_phase = fit_func(voltage_data)
+        voltage_rms = v_amp/np.sqrt(2) * volcal
+
+        current_data = data_dict["current"]
+        c_amp, c_freq, c_phase = fit_func(current_data)
+        current_rms = c_amp/np.sqrt(2)/resistance
+
+        phaseshift = np.pi/2 + (c_ref - c_phase) - (v_ref - v_phase)
+        power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
+        voltage_rms = v_amp/np.sqrt(2) * volcal
+        result = (voltage_rms, current_rms, phaseshift, power)
+        result_queue.put(result)
+
+def fit_func(data):
+    data = np.array(data)
+    time = data[:,0]
+    amplitude = data[:,1]
+    guess_mean = np.mean(amplitude)
+    guess_amplitude = np.amax(amplitude)
+    guess_phase = 0
+    guess_y0 = 0
+    guess_frequency = frequency
+    data_first_guess = (guess_amplitude
+                *np.sin(time*guess_frequency*2*np.pi + guess_phase%(2*np.pi))
+                + guess_mean)
+    optimize_func = lambda x: (x[0]
+                                *np.sin(time* x[1] * 2*np.pi + x[2]%(2*np.pi))
+                                + x[3] - amplitude)
+    solution = leastsq(optimize_func,
+                    [guess_amplitude, guess_frequency, guess_phase, guess_y0],
+                    full_output=0)
+    est_ampl, est_freq, est_phase, est_y0 = solution[0]
+    if est_ampl < 0:
+        est_ampl = np.abs(est_ampl)
+        est_phase = est_phase + np.pi
+    return (est_ampl, est_freq, est_phase%(2*np.pi))
   
 if __name__ == '__main__': 
     app = QApplication(sys.argv)
