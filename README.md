@@ -4,18 +4,41 @@ GUI for continuously monitoring the COST Reference Microplasma Jets power.
 
 ## Install
 
-We will assume Installation under Ubuntu 18.04. Other Linux Distributions should also work without any problems. Windows is also known to work, but the installation is a bit tricky.
+### Windows
 
-### Prerequisites
+#### Prerequisites
+First, a python3 installation is neccesary. Anaconda is kown to work. 
 
-scipy, pylab(from matplotlib), numpy, python-ivi, python-usbtmc, pyusb, PyQt5
+You need the following packages:
+
+scipy, pylab(from matplotlib), numpy, python-usbtmc, pyusb, PyQt5
+
+Additionally, the "libusb-win32" driver is needed wich is best installed using the Zadig GUI: https://zadig.akeo.ie/
+
+#### Adjust the code
+
+You will need to adjust the code for your scope.
+This will be improved soon.
+
+#### Start
+You might need to run the program as Administrator.
+
+python3 cost-power-monitor.py
+
+### Linux
+
+We will assume Installation under Ubuntu 18.04. Other Linux Distributions should also work without any problems.
+
+#### Prerequisites
+
+scipy, pylab(from matplotlib), numpy, python-usbtmc, pyusb, PyQt5
 
 ```bash
 sudo apt install python3-usb python3-pip python3-numpy python3-matplotlib python3-scipy python3-pyqt5
-sudo pip3 install python-ivi python-usbtmc
+sudo pip3 install python-usbtmc
 ```
 
-### Configure udev
+#### Configure udev
 
 If you want to use the program without root permissions, you need to add a udev rule:
 Edit e.g. /etc/udev/rules.d/12-scope.rules and add (e.g. for an Agilent DSO7104B):
@@ -38,11 +61,11 @@ sudo usermod [username] -aG plugdev
   
 A reboot might be necessary before the change takes effect.
 
-### Adjust the code
+#### Adjust the code
 
 You will need to adjust the code for your scope.
 This will be improved soon.
 
-### Start
+#### Start
 python3 cost-power-monitor.py
 
