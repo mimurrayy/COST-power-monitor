@@ -1,6 +1,7 @@
 # cost-power-monitor
 
 GUI for continuously monitoring the COST Reference Microplasma Jets power.
+For convenience we include a slightly modified version of python-ivi (https://github.com/python-ivi) and pyqtgraph (https://github.com/pyqtgraph/pyqtgraph).
 
 ## Install
 
