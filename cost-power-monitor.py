@@ -275,7 +275,7 @@ class settings_tab(QWidget):
         l_main_Layout.addWidget(chan_group)
         
         
-        # UI to set or find voltage callibration factor
+        # UI to set or find voltage Calibration factor
         volcal_group = QGroupBox()
         volcal_layout = QVBoxLayout()
         volcal_group.setLayout(volcal_layout)
@@ -287,7 +287,7 @@ class settings_tab(QWidget):
         self.volcal_std_label = QLabel()
         volcal_get = QPushButton("Find")
         volcal_get.clicked.connect(self.get_volcal)
-        volcal_row.addWidget(QLabel("Callibration Factor: "))
+        volcal_row.addWidget(QLabel("Calibration Factor: "))
         volcal_row.addWidget(self.volcal_box)
         volcal_row.addWidget(self.volcal_std_label)
         volcal_row.addWidget(volcal_get)
@@ -509,7 +509,7 @@ def fit_worker(data_queue, result_queue, volcal, v_ref, c_ref):
     else a 6 tuple of amp, freq and phase for both voltage and current.
     Returns a 2-tuple if cal=True: internal voltage amplitude, external voltage amplitude.
     Use num to restict the amount of data the worker should fetech.
-    Use cal to callibrate internal/external voltage probe"""
+    Use cal to Calibration internal/external voltage probe"""
     while True:
         data_dict = data_queue.get()
 
