@@ -28,15 +28,15 @@ python3 cost-power-monitor.py
 
 ### Linux
 
-We will assume Installation under Ubuntu 18.04. Other Linux Distributions should also work without any problems.
+We will assume Installation under Ubuntu 20.04. Other Linux Distributions should also work without any problems.
 
 #### Prerequisites
 
 scipy, pylab(from matplotlib), numpy, python-usbtmc, pyusb, PyQt5, pyqtgraph
 
 ```bash
-sudo apt install python3-usb python3-pip python3-numpy python3-matplotlib python3-scipy python3-pyqt5
-sudo pip3 install python-usbtmc python3-pyqtgraph
+sudo apt install python3-usb python3-pip python3-numpy python3-matplotlib python3-scipy python3-pyqt5 python3-pyqtgraph
+pip3 install python-usbtmc
 ```
 
 #### Configure udev
