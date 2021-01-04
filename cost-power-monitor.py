@@ -68,12 +68,13 @@ class data_monitor(QVBoxLayout):
         self.graph = pyqtgraph.PlotWidget(name='Plot1')
         self.table = QTableWidget()
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["Voltage","Current","Phaseshift","Power","Time"])
+        self.table.setHorizontalHeaderLabels(["Voltage / V", "Current / A",
+                                    "Phaseshift / rad", "Power / W", "Time"])
         self.tab_bar.addTab(self.table, "Table")
         self.tab_bar.addTab(self.graph, "Graph")
 
         self.update_timer = QtCore.QTimer(self)
-        self.update_timer.setInterval(500)
+        self.update_timer.setInterval(100)
         self.update_timer.timeout.connect(self.update)
         self.update_timer.start()
     
@@ -159,7 +160,7 @@ class data_monitor(QVBoxLayout):
         #self.update_graph()
     
     def update_power_dspl(self, power):
-        self.power_dspl.setText("Power: " + str(power) + " W")
+        self.power_dspl.setText("Power: " + str(round(power,3)) + " W")
         
     def update_graph(self):
         """Updates the Graph with new data, 
@@ -175,7 +176,11 @@ class data_monitor(QVBoxLayout):
         #print(data)
         self.table.insertRow(self.table.rowCount())
         for i,d in enumerate(data):
-            self.table.setItem(self.table.rowCount()-1,i,QTableWidgetItem(str(d)))
+            if i == 2:
+                r = 10 # round phaseshift very precise
+            else:
+                r = 3 # rest to third position after comma
+            self.table.setItem(self.table.rowCount()-1,i,QTableWidgetItem(str(round(d,r))))
         time = datetime.datetime.now().time().strftime("%H:%M:%S")
         self.table.setItem(self.table.rowCount()-1,self.table.columnCount()-1,QTableWidgetItem(str(time)))        
         self.table.scrollToBottom()
@@ -260,7 +265,10 @@ class sweep_tab(QWidget):
             global voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std
             self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
             voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std = self.this_sweep.find_ref()
-            self.ref_label.setText(str(voltage_ref_phase - current_ref_phase) + " +- " + str(voltage_ref_phase_std + current_ref_phase_std))
+            self.ref_label.setText(
+                str(round(voltage_ref_phase - current_ref_phase,10))
+                + " ± "
+                + str(round(voltage_ref_phase_std + current_ref_phase_std, 10)))
         
         
 class settings_tab(QWidget):
@@ -310,8 +318,8 @@ class settings_tab(QWidget):
         
     def get_volcal(self):
         self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
-        self.volcal_box.setText(str(self.this_sweep.calibrate()))
-        self.volcal_std_label.setText(str(volcal_std))
+        self.volcal_box.setText(str(round(self.this_sweep.calibrate(),1)))
+        self.volcal_std_label.setText("±" + str(round(volcal_std,1)))
         
         
 
