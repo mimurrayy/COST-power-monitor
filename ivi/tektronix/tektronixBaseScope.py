@@ -1294,7 +1294,7 @@ class tektronixBaseScope(scpi.common.IdnCommand, scpi.common.Reset, scpi.common.
         if acq_format != 'Y':
             raise UnexpectedResponseException()
 
-        if point_enc != 'BINARY':
+        if point_enc != 'BINARY' and point_enc != 'BIN':
             raise UnexpectedResponseException()
 
         # Read waveform data
