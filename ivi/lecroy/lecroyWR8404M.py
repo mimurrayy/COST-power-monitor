@@ -24,15 +24,20 @@ THE SOFTWARE.
 
 """
 
-# Oscilloscopes
-# WaveRunner Xi-A / MXi-A Oscilloscopes
-from .lecroyWR204MXIA import lecroyWR204MXIA
-from .lecroyWR204XIA import lecroyWR204XIA
-from .lecroyWR104MXIA import lecroyWR104MXIA
-from .lecroyWR104XIA import lecroyWR104XIA
-from .lecroyWR64MXIA import lecroyWR64MXIA
-from .lecroyWR64XIA import lecroyWR64XIA
-from .lecroyWR62XIA import lecroyWR62XIA
-from .lecroyWR44MXIA import lecroyWR44MXIA
-from .lecroyWR44XIA import lecroyWR44XIA
-from .lecroyWR8404M import lecroyWR8404M
+from .lecroyWRXIA import *
+
+class lecroyWR8404M(lecroyWRXIA):
+    "Lecroy WaveRunner 64MXi-A IVI oscilloscope driver"
+
+    def __init__(self, *args, **kwargs):
+        self.__dict__.setdefault('_instrument_id', 'WaveRunner 8404M-MS')
+
+        super(lecroyWR8404M, self).__init__(*args, **kwargs)
+
+        self._analog_channel_count = 4
+        self._digital_channel_count = 16
+        self._channel_count = self._analog_channel_count + self._digital_channel_count
+        self._bandwidth = 4e9
+        self._init_channels()
+
+

@@ -23,7 +23,6 @@ channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "not
 sim = False
 volcal = 2250
 volcal_std = 50
-scope_id = "USB0::0x0957::0x175D::INSTR"
 resistance = 4.2961608775
 frequency = 13560000
 result_queue = Queue(100)
@@ -33,7 +32,15 @@ current_ref_phase = 0
 current_ref_phase_std = 0
 ref_size = 10 # Number of phase reference points to average over
 
-class main_window(QWidget):  
+if len(usbtmc.list_devices()) > 0:
+    scope_idVendor = usbtmc.list_devices()[0].idVendor
+    scope_idProduct = usbtmc.list_devices()[0].idProduct
+    scope_id = "USB::%d::%d::INSTR" % (scope_idVendor, scope_idProduct)
+else:
+    print("no device found")
+print(scope_id)
+
+class main_window(QWidget):
     def __init__(self):
         super().__init__()
         l_main_Layout = QHBoxLayout()
@@ -490,13 +497,14 @@ class sweeper():
     
     def io_worker(self, data_queue):
         """ Gets waveforms from the scope and puts them into the data_queue."""
-        scope = ivi.agilent.agilentMSO7104B()
-        if not sim:
-            scope.initialize(scope_id)
-            #scope.set_timeout(5)
+        if scope_idVendor == 0x0957 and scope_idProduct == 0x175D:
+            scope = ivi.agilent.agilentMSO7104B(scope_id)
+        if scope_idVendor == 0x05ff and scope_idProduct == 0x1023:
+            scope = ivi.lecroy.lecroyWR8404M(scope_id)
         while True and not sim:
             data_dict = {}
-            scope.measurement.initiate()
+            if scope_idVendor == 0x0957: # Agilent scopes want to be initialized
+                scope.measurement.initiate()
             for chan_num in self.channels:
                 chan_name = self.channels[chan_num]
                 if chan_name != "nothing":
@@ -529,8 +537,8 @@ def fit_worker(data_queue, result_queue, volcal, v_ref, c_ref):
 
 def fit_func(data):
     data = np.array(data)
-    time = data[:,0]
-    amplitude = data[:,1]
+    time = np.nan_to_num(data[:,0])
+    amplitude = np.nan_to_num(data[:,1])
     guess_mean = np.mean(amplitude)
     guess_amplitude = np.amax(amplitude)
     guess_phase = 0
