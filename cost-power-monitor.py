@@ -31,14 +31,34 @@ voltage_ref_phase_std = 0
 current_ref_phase = 0
 current_ref_phase_std = 0
 ref_size = 10 # Number of phase reference points to average over
+scope_id = None
 
-if len(usbtmc.list_devices()) > 0:
-    scope_idVendor = usbtmc.list_devices()[0].idVendor
-    scope_idProduct = usbtmc.list_devices()[0].idProduct
-    scope_id = "USB::%d::%d::INSTR" % (scope_idVendor, scope_idProduct)
-else:
-    print("no device found")
-print(scope_id)
+def get_scope(scope_id):
+    "Scope database. Add yours here!"
+    device = usbtmc.Instrument(scope_id)
+    idV = device.idVendor
+    idP = device.idProduct
+    device.close()
+
+    if idV == 0x0957 and idP == 0x175D:
+        scope = ivi.agilent.agilentMSO7104B(scope_id)
+
+    elif idV == 0x05ff and idP == 0x1023:
+        scope = ivi.lecroy.lecroyWR8404M(scope_id)
+
+    elif idV == 0x0957 and idP == 6042: # York, untested
+        scope = ivi.agilent.agilentDSOX2004A(scope_id)
+
+    else:
+        scope = ivi.lecroy.lecroyWR8404M(scope_id) # your IVI scope here!
+
+    return scope
+
+class QHLine(QFrame):
+    def __init__(self):
+        super(QHLine, self).__init__()
+        self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
 
 class main_window(QWidget):
     def __init__(self):
@@ -56,7 +76,7 @@ class main_window(QWidget):
         #l_data_monitor.addWidget(graph)
         
         self.setLayout(l_main_Layout)
-        self.setGeometry(300, 300, 1000, 400)
+        self.setGeometry(300, 300, 1000, 450)
         self.setWindowTitle("COST Power Monitor")
         self.show() 
 
@@ -193,7 +213,6 @@ class ctrl_panel(QVBoxLayout):
         self.tab_bar = QTabWidget()
         this_sweep_tab = sweep_tab()
         this_settings_tab = settings_tab()
-        this_scope_tab = scope_tab()
         self.tab_bar.addTab(this_sweep_tab, "Sweep")
         self.tab_bar.addTab(this_settings_tab, "Settings")
         #self.tab_bar.addTab(this_scope_tab, "Scope")
@@ -275,12 +294,46 @@ class settings_tab(QWidget):
     def __init__(self):
         super().__init__()
         l_main_Layout = QVBoxLayout()
+
+        # list of connected scopes
+        self.scope_cbox = QComboBox()
+        self.scope_list()
+
+        # UI to select the scope
+        scope_group = QGroupBox()
+        scope_layout = QVBoxLayout()
+        scope_group.setLayout(scope_layout)
+
+        scope_sel_row = QHBoxLayout()
+        scope_info_row = QHBoxLayout()
+
+
+        scope_sel_row.addWidget(QLabel("Oscilloscope"))
+
+        # self.scope_cbox.addItems(self.dlist)
+        scope_sel_row.addWidget(self.scope_cbox)
+        self.scope_cbox.setCurrentIndex(0)
+        self.scope_cbox.currentIndexChanged.connect(self.change_scope)
+
+        update_btn = QPushButton("Scan")
+        scope_sel_row.addWidget(update_btn)
+
+        self.scope_name = QLabel(" ")
+        scope_info_row.addWidget(self.scope_name)
+
+
+        self.change_scope()
+        scope_layout.addLayout(scope_sel_row)
+        scope_layout.addLayout(scope_info_row)
         
+        l_main_Layout.addWidget(scope_group)
+        l_main_Layout.addWidget(QHLine())
+
         # UI to assign scope channels
         chan_group =  QGroupBox()
         chan_layout = QVBoxLayout()
         chan_group.setLayout(chan_layout)
-        
+
         chan_rows = []
         for channel_num in range(1,5):
             this_channel = channel_settings(channel_num)
@@ -288,7 +341,7 @@ class settings_tab(QWidget):
             chan_layout.addLayout(this_channel)
         
         l_main_Layout.addWidget(chan_group)
-        
+        l_main_Layout.addWidget(QHLine())
         
         # UI to set or find voltage Calibration factor
         volcal_group = QGroupBox()
@@ -312,6 +365,62 @@ class settings_tab(QWidget):
         
         self.setLayout(l_main_Layout)
         
+        # monitor changes in scopelist
+        update_btn.clicked.connect(self.scope_list)
+
+
+
+    def change_scope(self):
+        global scope_id
+        idx = self.scope_cbox.currentIndex()
+        try:
+            device = self.devices[idx]
+            scope_id = "USB::%d::%d::INSTR" % (device.idVendor, device.idProduct)
+            manufacturer = device.manufacturer
+            product = device.product
+        except Exception as e:
+            print(e)
+            device = None
+            scope_id = None
+            manufacturer = ""
+            product = ""
+
+        try:
+            scope = get_scope(scope_id)
+            scope.close()
+            scope_known = True
+            mark = "✓"
+        except Exception as e:
+            print(e)
+            scope_known = False
+            mark = "✗"
+        self.scope_name.setText(mark + " " + manufacturer + " " + product)
+
+    def scope_list(self):
+        # list of connected USB devices
+        sel_entry = self.scope_cbox.currentText()
+        devices = usbtmc.list_devices()
+        dlist = []
+        for device in devices:
+            scope_idVendor = device.idVendor
+            scope_idProduct = device.idProduct
+            scope_label = (hex(scope_idVendor) + ":" + hex(scope_idProduct))
+            dlist.append(scope_label)
+        self.dlist, self.devices = dlist, devices
+        self.scope_cbox.clear()
+        self.scope_cbox.addItems(dlist)
+        idx = self.scope_cbox.findText(sel_entry)
+        if idx == -1:
+            try:
+                self.scope_cbox.setCurrentIndex(0)
+            except:
+                pass
+        else:
+            self.scope_cbox.setCurrentIndex(idx)
+
+
+
+
     def change_volcal(self):
         global volcal 
         volcal = float(self.volcal_box.text())
@@ -344,42 +453,7 @@ class channel_settings(QHBoxLayout):
         this_chan_ass[self.number] = self.chan_cbox.currentText()
         channel_assignment = this_chan_ass
 
-        
-class scope_tab(QWidget):
-    def __init__(self):
-        """Choose and configure scope"""
-        super().__init__()
-        #visa_rm = visa.ResourceManager()
-        #device_list = visa_rm.list_resources()
-        device_list = ["USB0::0x0957::0x175D::INSTR"]
-        l_main_Layout = QVBoxLayout()
-        
-        device_group = QGroupBox()
-        device_layout = QVBoxLayout()
-        device_group.setLayout(device_layout)
-        device_row = QHBoxLayout()
-        
-        self.device_cbox = QComboBox()
-        self.device_cbox.addItems(device_list)
-        
-        self.use_device_btn = QPushButton()
-        self.use_device_btn.clicked.connect(self.choose_scope)        
 
-        device_row.addWidget(QLabel("Device: "))
-        device_row.addWidget(self.device_cbox)
-        device_row.addWidget(self.use_device_btn)
-        device_layout.addLayout(device_row)
-        
-        l_main_Layout.addWidget(device_group)
-        self.setLayout(l_main_Layout)
-        
-    def choose_scope(self):
-        print("Nope")
-        #scope_id = self.device_cbox.currentText()
-        #if not sim:
-            #scope = ivi.agilent.agilentMSO7104B()
-            #scope.initialize(scope_id)
-   
     
 
 class sweeper():
@@ -505,21 +579,23 @@ class sweeper():
     
     def io_worker(self, data_queue):
         """ Gets waveforms from the scope and puts them into the data_queue."""
-        if scope_idVendor == 0x0957 and scope_idProduct == 0x175D:
-            scope = ivi.agilent.agilentMSO7104B(scope_id)
-        if scope_idVendor == 0x05ff and scope_idProduct == 0x1023:
-            scope = ivi.lecroy.lecroyWR8404M(scope_id)
+        device = usbtmc.Instrument(scope_id)
+        idV = device.idVendor
+        device.close()
+
+        scope = get_scope(scope_id)
+
         while True and not sim:
             data_dict = {}
-            if scope_idVendor == 0x0957: # Agilent scopes want to be initialized
+            if idV == 0x0957: # Agilent scopes want to be initialized (tested for DSO7104B)
                 scope.measurement.initiate()
             for chan_num in self.channels:
                 chan_name = self.channels[chan_num]
                 if chan_name != "nothing":
                     data_dict[chan_name] = scope.channels[chan_num-1].measurement.fetch_waveform()
             data_queue.put(data_dict)
-                
-    
+
+
 def fit_worker(data_queue, result_queue, volcal, v_ref, c_ref):
     """Takes data_queue and fits a sinus. Returns 4-tuple of voltage,current, phaseshift and power if raw=False,
     else a 6 tuple of amp, freq and phase for both voltage and current.
@@ -569,8 +645,6 @@ def fit_func(data):
   
 if __name__ == '__main__': 
     app = QApplication(sys.argv)
-    #if debug:
-        #print("DEBUGing is on, additional information will be printed to stdout\n")
     this_main_window = main_window()
     sys.exit(app.exec_())
 
