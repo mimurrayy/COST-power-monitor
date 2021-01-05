@@ -1,7 +1,7 @@
 # cost-power-monitor
 
 GUI for continuously monitoring the COST Reference Microplasma Jets power.
-For convenience we include a slightly modified version of python-ivi (https://github.com/python-ivi).
+We include a slightly modified version of python-ivi (https://github.com/python-ivi) with minor fixes and adjustments.
 
 ## Install
 
@@ -66,11 +66,22 @@ sudo usermod [username] -aG plugdev
   
 A reboot might be necessary before the change takes effect.
 
-#### Adjust the code
-
-You will need to adjust the code for your scope.
-This will be improved soon.
-
 #### Start
 python3 cost-power-monitor.py
+
+## Supported oscilloscopes
+
+Any scope with a sampling rate of 4 GS/s or better should work in theory, but additional code adjustments might be neccesary to use an unsupported scope. Right now, the following scopes work out of the box with the software:
+
+- Agilent MSO7104B
+- Agilent DSOX2004A
+- Lecroy WR8404M
+- Lecroy HDO6104A
+
+I expect most modern Teledyne Lecroy scope to work out of the box. For scopes by other manufacturers which are not in this list, a small code adjustment will be neccesary in the get_scope() function at the very beginning of the code. 
+
+
+
+
+
 
