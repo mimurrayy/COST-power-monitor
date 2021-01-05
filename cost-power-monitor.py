@@ -42,6 +42,8 @@ def get_scope(scope_id):
     if idV == 0x0957 and idP == 0x175D:
         scope = ivi.agilent.agilentMSO7104B(scope_id)
 
+    # Lecroy scopes, seems to work for multiple models which send the same idP
+    # tested for WR8404M, HDO6104A
     elif idV == 0x05ff and idP == 0x1023:
         scope = ivi.lecroy.lecroyWR8404M(scope_id)
 
