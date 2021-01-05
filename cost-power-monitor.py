@@ -164,7 +164,7 @@ class data_monitor(QVBoxLayout):
 
 
     def copy_data(self):
-        QApplication.clipboard().setText(np.array2string(np.array(self.results))
+        QApplication.clipboard().setText(np.array2string(np.array(self.results)))
      
 
     def update(self):
