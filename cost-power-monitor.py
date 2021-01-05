@@ -79,7 +79,12 @@ class data_monitor(QVBoxLayout):
         super().__init__()
         self.results = []
         self.tab_bar = QTabWidget()
+        pyqtgraph.setConfigOption('background', 'w')
+        pyqtgraph.setConfigOption('foreground', 'k')
         self.graph = pyqtgraph.PlotWidget(name='Plot1')
+        self.graph.setLabel("left","power / W")
+        self.graph.setLabel("bottom","voltage / V")
+
         self.table = QTableWidget()
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["Voltage / V", "Current / A",
@@ -117,6 +122,7 @@ class data_monitor(QVBoxLayout):
         result_queue.close()
         result_queue = Queue(100) 
         self.table.setRowCount(0)
+        self.results = []
         
 
     def save_data(self):
@@ -158,7 +164,7 @@ class data_monitor(QVBoxLayout):
 
 
     def copy_data(self):
-        return "Nope"
+        QApplication.clipboard().setText(np.array2string(np.array(self.results))
      
 
     def update(self):
@@ -177,10 +183,11 @@ class data_monitor(QVBoxLayout):
     def update_graph(self):
         """Updates the Graph with new data, 
         this data beeing an 2 dim array of voltage and power"""
+        self.graph.clear()
         if self.results:
             voltage = np.array(self.results)[:,0]
             power = np.array(self.results)[:,3]
-            self.graph.plot(title="power", x=voltage, y=power)
+            self.graph.plot(title="power", x=voltage, y=power, symbol='o')
 
 
     def update_table(self,data):
@@ -416,8 +423,15 @@ class settings_tab(QWidget):
 
     def get_volcal(self):
         self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
-        self.volcal_box.setText(str(round(self.this_sweep.calibrate(),1)))
-        self.volcal_std_label.setText("±" + str(round(volcal_std,1)))
+        try:
+            self.volcal_box.setText(str(round(self.this_sweep.calibrate(),1)))
+        except Exception as e:
+            print(e)
+
+        if type(volcal_std) == int:
+            self.volcal_std_label.setText("±" + str(round(volcal_std,1)))
+        else:
+            self.volcal_std_label.setText(str(volcal_std))
         
   
 class channel_settings(QHBoxLayout):
@@ -478,6 +492,7 @@ class sweeper():
             while not self.data_queue.empty():
                 self.data_queue.get()
     
+
     def calibrate(self):
         global volcal, volcal_std
         ref_queue = Queue(ref_size*2) # Don't ask
@@ -537,11 +552,7 @@ class sweeper():
             ) % (2*np.pi)
         v_phase_diff_sum = 0
         c_phase_diff_sum = 0
-        print(v_phases)
-        print()
-        print(c_phases)
-        print()
-        print(np.array(v_phases)-np.array(c_phases))
+
         for angle in v_phases:
             # Next line seems to work. It's all very complicated.
             v_phase_diff_sum = (v_phase_diff_sum
