@@ -7,7 +7,6 @@ import time
 import numpy as np
 import pylab
 import datetime
-#import visa
 import ivi
 import usbtmc
 from multiprocessing import Process, Queue, cpu_count
@@ -68,12 +67,7 @@ class main_window(QWidget):
         this_ctrl_panel = ctrl_panel()
         l_main_Layout.addLayout(this_data_monitor)
         l_main_Layout.addLayout(this_ctrl_panel)
-        #l_main_Layout.addWidget(l_ctl_panel)
-        
         self.rand_data = np.random.normal(size=100)
-        #this_data_monitor.update(rand_data)
-
-        #l_data_monitor.addWidget(graph)
         
         self.setLayout(l_main_Layout)
         self.setGeometry(300, 300, 1000, 450)
@@ -98,7 +92,6 @@ class data_monitor(QVBoxLayout):
         self.update_timer.timeout.connect(self.update)
         self.update_timer.start()
     
-        #btn_group = QGroupBox()
         btn_layout = QHBoxLayout()
         clear_btn = QPushButton("Clear")
         clear_btn.clicked.connect(self.clear_data)
@@ -112,23 +105,20 @@ class data_monitor(QVBoxLayout):
         btn_layout.addWidget(plot_btn)
         btn_layout.addWidget(copy_btn)
         btn_layout.addWidget(save_btn)
-        
-        #power_group.setLayout(power_layout)
-        
-        #show_power_row = QHBoxLayout()
     
         self.power_dspl = QLabel("0 W")
         self.addWidget(self.power_dspl)
         self.addWidget(self.tab_bar)
         self.addLayout(btn_layout)
-        
-     
+
+
     def clear_data(self):
         global result_queue
         result_queue.close()
         result_queue = Queue(100) 
         self.table.setRowCount(0)
         
+
     def save_data(self):
         seperator = "\t "
         next_line = " \n"
@@ -170,6 +160,7 @@ class data_monitor(QVBoxLayout):
     def copy_data(self):
         return "Nope"
      
+
     def update(self):
         while not result_queue.empty():
             new_data = result_queue.get()
@@ -177,11 +168,12 @@ class data_monitor(QVBoxLayout):
                 self.results.append(new_data)
                 self.update_table(new_data)
                 self.update_power_dspl(new_data[-1])
-        #self.update_graph()
-    
+
+
     def update_power_dspl(self, power):
         self.power_dspl.setText("Power: " + str(round(power,3)) + " W")
         
+
     def update_graph(self):
         """Updates the Graph with new data, 
         this data beeing an 2 dim array of voltage and power"""
@@ -189,6 +181,7 @@ class data_monitor(QVBoxLayout):
             voltage = np.array(self.results)[:,0]
             power = np.array(self.results)[:,3]
             self.graph.plot(title="power", x=voltage, y=power)
+
 
     def update_table(self,data):
         """Updates the table with new data. 
@@ -205,8 +198,7 @@ class data_monitor(QVBoxLayout):
         self.table.setItem(self.table.rowCount()-1,self.table.columnCount()-1,QTableWidgetItem(str(time)))        
         self.table.scrollToBottom()
             
-        
-    
+
 class ctrl_panel(QVBoxLayout):
     def __init__(self):
         super().__init__()
@@ -215,8 +207,8 @@ class ctrl_panel(QVBoxLayout):
         this_settings_tab = settings_tab()
         self.tab_bar.addTab(this_sweep_tab, "Sweep")
         self.tab_bar.addTab(this_settings_tab, "Settings")
-        #self.tab_bar.addTab(this_scope_tab, "Scope")
         self.addWidget(self.tab_bar)
+
 
 class sweep_tab(QWidget):
     def __init__(self):
@@ -232,9 +224,7 @@ class sweep_tab(QWidget):
         power_group.setLayout(power_layout)
         
         show_power_row = QHBoxLayout()
-        #self.power_label = QLabel("0 W")
         show_power_row.addWidget(QLabel("Start/Pause Measurement"))
-       # show_power_row.addWidget(self.power_label)
         power_layout.addLayout(show_power_row)
         
         power_btn_row = QHBoxLayout()
@@ -269,16 +259,19 @@ class sweep_tab(QWidget):
         
         self.setLayout(l_main_Layout)
         
+
     def start_sweep(self):
         if not self.sweeping:
             self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
             self.this_sweep.start()
             self.sweeping = True
 
+
     def stop_sweep(self):
         self.sweeping = False
         self.this_sweep.stop()
         
+
     def find_ref(self):
         if not self.sweeping:
             global voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std
@@ -307,10 +300,8 @@ class settings_tab(QWidget):
         scope_sel_row = QHBoxLayout()
         scope_info_row = QHBoxLayout()
 
-
         scope_sel_row.addWidget(QLabel("Oscilloscope"))
 
-        # self.scope_cbox.addItems(self.dlist)
         scope_sel_row.addWidget(self.scope_cbox)
         self.scope_cbox.setCurrentIndex(0)
         self.scope_cbox.currentIndexChanged.connect(self.change_scope)
@@ -320,7 +311,6 @@ class settings_tab(QWidget):
 
         self.scope_name = QLabel(" ")
         scope_info_row.addWidget(self.scope_name)
-
 
         self.change_scope()
         scope_layout.addLayout(scope_sel_row)
@@ -369,7 +359,6 @@ class settings_tab(QWidget):
         update_btn.clicked.connect(self.scope_list)
 
 
-
     def change_scope(self):
         global scope_id
         idx = self.scope_cbox.currentIndex()
@@ -396,6 +385,7 @@ class settings_tab(QWidget):
             mark = "✗"
         self.scope_name.setText(mark + " " + manufacturer + " " + product)
 
+
     def scope_list(self):
         # list of connected USB devices
         sel_entry = self.scope_cbox.currentText()
@@ -419,19 +409,16 @@ class settings_tab(QWidget):
             self.scope_cbox.setCurrentIndex(idx)
 
 
-
-
     def change_volcal(self):
         global volcal 
         volcal = float(self.volcal_box.text())
         
+
     def get_volcal(self):
         self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
         self.volcal_box.setText(str(round(self.this_sweep.calibrate(),1)))
         self.volcal_std_label.setText("±" + str(round(volcal_std,1)))
         
-        
-
   
 class channel_settings(QHBoxLayout):
     def __init__(self, number):
@@ -453,8 +440,6 @@ class channel_settings(QHBoxLayout):
         this_chan_ass[self.number] = self.chan_cbox.currentText()
         channel_assignment = this_chan_ass
 
-
-    
 
 class sweeper():
     def __init__(self, channels, volcal, v_ref, c_ref):
@@ -521,6 +506,7 @@ class sweeper():
     
         return volcal
     
+
     def find_ref(self):
         ref_queue = Queue(ref_size*2) # Don't ask
         self.io_process.start()
@@ -619,6 +605,7 @@ def fit_worker(data_queue, result_queue, volcal, v_ref, c_ref):
         result = (voltage_rms, current_rms, phaseshift, power)
         result_queue.put(result)
 
+
 def fit_func(data):
     data = np.array(data)
     time = np.nan_to_num(data[:,0])
@@ -643,7 +630,8 @@ def fit_func(data):
         est_phase = est_phase + np.pi
     return (est_ampl, est_freq, est_phase%(2*np.pi))
   
-if __name__ == '__main__': 
+
+if __name__ == '__main__':
     app = QApplication(sys.argv)
     this_main_window = main_window()
     sys.exit(app.exec_())
