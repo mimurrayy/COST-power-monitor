@@ -16,7 +16,7 @@ setuptools.setup(
     url="https://github.com/mimurrayy/COST-power-monitor/",
     packages=setuptools.find_packages(),
     install_requires=[
-          'python-usbtmc>=0.8', 'numpy>=1.17.0', 'scipy>=1.0.0', 'pyqtgraph>=0.10.0'
+          'numpy>=1.17.0', 'scipy>=1.0.0', 'pyqtgraph>=0.10.0', 'pyusb>=1.01', 'PyQt5>=5.9'
       ],
     classifiers=[
         "Programming Language :: Python :: 3",
