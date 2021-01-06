@@ -1,0 +1,11 @@
+# USBTMC instruments
+
+# Agilent MSO7104
+SUBSYSTEMS=="usb", ACTION=="add", ATTRS{idVendor}=="0957", ATTRS{idProduct}=="175d", GROUP="plugdev", MODE="0660"
+
+# Teleyne LeCroy WR 8404M
+SUBSYSTEMS=="usb", ACTION=="add", ATTRS{idVendor}=="05ff", ATTRS{idProduct}=="1023", GROUP="plugdev", MODE="0660"
+
+# Devices
+KERNEL=="usbtmc/*",       MODE="0660", GROUP="plugdev"
+KERNEL=="usbtmc[0-9]*",   MODE="0660", GROUP="plugdev"

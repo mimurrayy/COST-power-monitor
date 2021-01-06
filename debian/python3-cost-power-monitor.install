@@ -1,1 +1,2 @@
 cost-power-monitor.desktop usr/share/applications/
+12-usbtmc-scopes-udev.rules etc/udev/rules.d/
