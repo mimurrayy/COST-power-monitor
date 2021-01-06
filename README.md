@@ -1,7 +1,7 @@
 # cost-power-monitor
 
 GUI for continuously monitoring the COST Reference Microplasma Jets power.
-We include a slightly modified version of python-ivi (https://github.com/python-ivi) with minor fixes and adjustments.
+We include a slightly modified version of python-ivi with minor fixes and adjustments as well as python-usbtmc (https://github.com/python-ivi).
 
 ## Install
 
@@ -11,20 +11,21 @@ We include a slightly modified version of python-ivi (https://github.com/python-
 First, a python3 installation is neccesary. Anaconda is kown to work. 
 
 You need the following packages:
+scipy, numpy, pyusb, PyQt5, pyqtgraph
 
-scipy, pylab(from matplotlib), numpy, python-usbtmc, pyusb, PyQt5, pyqtgraph
+All can be installed from pypi using pip:
+```
+python pip install scipy numpy pyusb PyQt5 pyqtgraph
+
+```
 
 Additionally, the "libusb-win32" driver is needed wich is best installed using the Zadig GUI: https://zadig.akeo.ie/
 
-#### Adjust the code
-
-You will need to adjust the code for your scope.
-This will be improved soon.
 
 #### Start
 You might need to run the program as Administrator.
 
-python3 cost-power-monitor.py
+python cost-power-monitor.py
 
 ### Linux
 
@@ -32,11 +33,10 @@ We will assume Installation under Ubuntu 20.04. Other Linux Distributions should
 
 #### Prerequisites
 
-scipy, pylab(from matplotlib), numpy, python-usbtmc, pyusb, PyQt5, pyqtgraph
+scipy, numpy, pyusb, PyQt5, pyqtgraph
 
 ```bash
-sudo apt install python3-usb python3-pip python3-numpy python3-matplotlib python3-scipy python3-pyqt5 python3-pyqtgraph
-pip3 install python-usbtmc
+sudo apt install python3-usb python3-numpy python3-scipy python3-pyqt5 python3-pyqtgraph
 ```
 
 #### Configure udev
