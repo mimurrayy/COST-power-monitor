@@ -4,8 +4,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="cost-power-monitor", # Replace with your own username
-    version="1.0.0",
+    name="cost-power-monitor",
+    version="1.1.0",
     author="Julian Held",
     author_email="julian.held@rub.de",
     license='MIT',
