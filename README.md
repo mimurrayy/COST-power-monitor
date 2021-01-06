@@ -1,9 +1,33 @@
-# cost-power-monitor
+# COST-power-monitor
 
 GUI for continuously monitoring the COST Reference Microplasma Jets power.
 We include a slightly modified version of python-ivi with minor fixes and adjustments as well as python-usbtmc (https://github.com/python-ivi).
 
-## Install
+## Installation
+
+### Windows
+First, connect the scope to your computer. Then, use zardig (https://zadig.akeo.ie/) to install the "libusb-win32" driver for the correct device. After that, you can use the `.exe` file provided with the release to install COST-power-monitor. 
+
+### Linux
+For Ubuntu 18.04 and 20.04 we provide `.deb` packages which should make the installation seemless. Make sure that your user is part of the `plugdev` group or run the software as root:
+```
+sudo cost-power-monitor
+```
+For other linux distributions, please use the manual install.
+
+## Supported oscilloscopes
+
+Any scope with a sampling rate of 4 GS/s or better should work in theory, but additional code adjustments might be neccesary to use an unsupported scope. Right now, the following scopes work out of the box with the software:
+
+- Agilent MSO7104B
+- Agilent DSOX2004A
+- Lecroy WR8404M
+- Lecroy HDO6104A
+
+I expect most modern Teledyne Lecroy scope to work out of the box. For scopes by other manufacturers which are not in this list, a small code adjustment will be neccesary in the get_scope() function at the very beginning of the code. 
+
+
+## Manual Install
 
 ### Windows
 
@@ -68,19 +92,6 @@ A reboot might be necessary before the change takes effect.
 
 #### Start
 python3 cost-power-monitor.py
-
-## Supported oscilloscopes
-
-Any scope with a sampling rate of 4 GS/s or better should work in theory, but additional code adjustments might be neccesary to use an unsupported scope. Right now, the following scopes work out of the box with the software:
-
-- Agilent MSO7104B
-- Agilent DSOX2004A
-- Lecroy WR8404M
-- Lecroy HDO6104A
-
-I expect most modern Teledyne Lecroy scope to work out of the box. For scopes by other manufacturers which are not in this list, a small code adjustment will be neccesary in the get_scope() function at the very beginning of the code. 
-
-
 
 
 
