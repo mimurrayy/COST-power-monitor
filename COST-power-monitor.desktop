@@ -1,4 +1,0 @@
-[Desktop Entry]
-Name=Cost Power Monitor
-Type=Application
-Exec=/opt/COST-power-monitor/start.sh

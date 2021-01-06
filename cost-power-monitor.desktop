@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Cost Power Monitor
+Comment= GUI for continuously monitoring dissipated power of a COST-Jet. 
+Type=Application
+Exec=/usr/bin/cost-power-monitor
