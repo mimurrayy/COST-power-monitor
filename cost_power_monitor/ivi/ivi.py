@@ -39,7 +39,7 @@ except ImportError:
 
 # python-usbtmc for USBTMC instrument support
 try:
-    import usbtmc
+    from .. import usbtmc
 except ImportError:
     pass
 
