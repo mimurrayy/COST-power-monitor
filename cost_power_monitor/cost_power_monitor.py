@@ -465,7 +465,7 @@ class sweeper():
         self.v_ref = v_ref
         self.c_ref = c_ref
         self.data_queue = mgr.Queue(ref_size)
-        self.io_process = Process(target=self.io_worker, args=(self.data_queue,))
+        self.io_process = Process(target=self.io_worker, args=(self.data_queue, scope_id))
         self.fit_process_list = []
         for i in range(cpu_count()-1):
             this_fit_proccess = Process(target=fit_worker,
@@ -575,7 +575,7 @@ class sweeper():
         return (voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std) 
         
     
-    def io_worker(self, data_queue):
+    def io_worker(self, data_queue, scope_id):
         """ Gets waveforms from the scope and puts them into the data_queue."""
         device = usbtmc.Instrument(scope_id)
         idV = device.idVendor
