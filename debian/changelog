@@ -1,3 +1,16 @@
+cost-power-monitor (1.1.1-1) stable; urgency=medium
+
+  * New release
+
+ -- Julian Held <julian@julian-desktop>  Mon, 01 Feb 2021 19:40:00 +0100
+
+
+cost-power-monitor (1.1.0-1) UNRELEASED; urgency=medium
+
+  * New release
+
+ -- Julian Held <julian@julian-desktop>  Wed, 06 Jan 2021 17:23:32 +0100
+
 cost-power-monitor (1.0.0-1) unstable; urgency=medium
 
   * Initial release 
