@@ -124,25 +124,27 @@ def list_devices():
     "List all connected USBTMC devices"
 
     def is_usbtmc_device(dev):
-        for cfg in dev:
-            d = usb.util.find_descriptor(cfg, bInterfaceClass=USBTMC_bInterfaceClass,
-                                         bInterfaceSubClass=USBTMC_bInterfaceSubClass)
-            if d is not None:
-                return True
-
-            if dev.idVendor == 0x1334:
-                # Advantest
-                return True
-
-            if dev.idVendor == 0x0957:
-                # Agilent
-                if dev.idProduct in [0x2818, 0x4218, 0x4418]:
-                    # Agilent U27xx modular devices in firmware update mode
-                    # 0x2818 for U2701A/U2702A (firmware update mode on power up)
-                    # 0x4218 for U2722A (firmware update mode on power up)
-                    # 0x4418 for U2723A (firmware update mode on power up)
+        try:
+            for cfg in dev:
+                d = usb.util.find_descriptor(cfg, bInterfaceClass=USBTMC_bInterfaceClass,
+                                             bInterfaceSubClass=USBTMC_bInterfaceSubClass)
+                if d is not None:
                     return True
 
+                if dev.idVendor == 0x1334:
+                    # Advantest
+                    return True
+
+                if dev.idVendor == 0x0957:
+                    # Agilent
+                    if dev.idProduct in [0x2818, 0x4218, 0x4418]:
+                        # Agilent U27xx modular devices in firmware update mode
+                        # 0x2818 for U2701A/U2702A (firmware update mode on power up)
+                        # 0x4218 for U2722A (firmware update mode on power up)
+                        # 0x4418 for U2723A (firmware update mode on power up)
+                        return True
+        except:
+            pass
         return False
 
     return list(usb.core.find(find_all=True, custom_match=is_usbtmc_device))
