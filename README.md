@@ -6,7 +6,7 @@ We include a slightly modified version of python-ivi with minor fixes and adjust
 ## Installation
 
 ### Windows
-First, connect the scope to your computer. Then, use zardig (https://zadig.akeo.ie/) to install the "libusb-win32" driver for the correct device. After that, you can use the `.exe` file provided with the release to install COST-power-monitor. 
+First, connect the scope to your computer. Then, use zardig (https://zadig.akeo.ie/) to install the "libusb-win32" driver for the correct device. After that, you can use the `.exe` file provided with the release to install COST-power-monitor. You might need to run the application as administrator.
 
 ### Linux
 For Ubuntu 18.04 and 20.04 we provide `.deb` packages which should make the installation seemless. Make sure that your user is part of the `plugdev` group or run the software as root:
