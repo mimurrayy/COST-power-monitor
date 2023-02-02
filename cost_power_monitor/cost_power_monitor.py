@@ -584,14 +584,20 @@ class sweeper():
         scope = get_scope(scope_id)
 
         while True and not sim:
+            fail = False
             data_dict = {}
             if idV == 0x0957: # Agilent scopes want to be initialized (tested for DSO7104B)
                 scope.measurement.initiate()
             for chan_num in self.channels:
                 chan_name = self.channels[chan_num]
                 if chan_name != "nothing":
-                    data_dict[chan_name] = scope.channels[chan_num-1].measurement.fetch_waveform()
-            data_queue.put(data_dict)
+                    data = scope.channels[chan_num-1].measurement.fetch_waveform()
+                    if len(data) > 0: # check for empty data sent from the scope
+                        data_dict[chan_name] = data
+                    else:
+                        fail = True
+            if not fail:
+                data_queue.put(data_dict)
 
 
 def fit_worker(data_queue, result_queue, volcal, v_ref, c_ref):
