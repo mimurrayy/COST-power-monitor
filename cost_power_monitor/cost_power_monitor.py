@@ -605,11 +605,8 @@ class sweeper():
 
 
 def fit_worker(data_queue, result_queue, volcal, v_ref, c_ref):
-    """Takes data_queue and fits a sinus. Returns 4-tuple of voltage,current, phaseshift and power if raw=False,
-    else a 6 tuple of amp, freq and phase for both voltage and current.
-    Returns a 2-tuple if cal=True: internal voltage amplitude, external voltage amplitude.
-    Use num to restict the amount of data the worker should fetech.
-    Use cal to Calibration internal/external voltage probe"""
+    """Takes data_queue and fits a sinus. Returns 4-tuple of voltage,current, 
+    phaseshift and power """
     while True:
         data_dict = data_queue.get()
 
