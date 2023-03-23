@@ -10,10 +10,14 @@ from . import usbtmc
 
 from multiprocessing import Process, Queue, cpu_count
 import multiprocessing
-from scipy.optimize import leastsq,broyden1
+from scipy.optimize import leastsq
 from scipy import stats
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import QFrame, QWidget, QHBoxLayout, QVBoxLayout, QTabWidget
+from PyQt5.QtWidgets import QTableWidget, QPushButton, QLabel, QFileDialog
+from PyQt5.QtWidgets import QMessageBox, QApplication, QTableWidgetItem
+from PyQt5.QtWidgets import QGroupBox, QComboBox, QLineEdit
+
 import pyqtgraph
 # importing this after pyqt5 tells pyqtgraph to use qt5 instead of 4
 
