@@ -7,6 +7,7 @@ import numpy as np
 import datetime
 from . import ivi
 from . import usbtmc
+from usb import USBError
 
 from multiprocessing import Process, Queue, cpu_count
 import multiprocessing
@@ -584,7 +585,6 @@ class sweeper():
         device = usbtmc.Instrument(scope_id)
         idV = device.idVendor
         device.close()
-
         scope = get_scope(scope_id)
 
         while True and not sim:
@@ -595,8 +595,13 @@ class sweeper():
             for chan_num in self.channels:
                 chan_name = self.channels[chan_num]
                 if chan_name != "nothing":
-                    data = scope.channels[chan_num-1].measurement.fetch_waveform()
-                    if len(data) > 0: # check for empty data sent from the scope
+                    try:
+                        data = scope.channels[chan_num-1].measurement.fetch_waveform()
+                    except USBError as exc:
+                        print(exc)
+                        print("USB error. Try to keep going.")
+                        fail = True
+                    if len(data) > 0:
                         data_dict[chan_name] = data
                     else:
                         fail = True
