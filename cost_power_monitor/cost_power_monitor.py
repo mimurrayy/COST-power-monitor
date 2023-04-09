@@ -12,8 +12,11 @@ from usb import USBError
 from multiprocessing import Process, Queue, cpu_count
 import multiprocessing
 from scipy.optimize import leastsq
-from scipy.integrate import simpson
-
+try: # old scipy calls it simps
+    from scipy.integrate import simpson
+except:
+    from scipy.integrate import simps as simpson
+    
 from scipy import stats
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QFrame, QWidget, QHBoxLayout, QVBoxLayout, QTabWidget
