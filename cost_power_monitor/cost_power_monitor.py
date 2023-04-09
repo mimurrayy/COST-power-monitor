@@ -12,13 +12,14 @@ from usb import USBError
 from multiprocessing import Process, Queue, cpu_count
 import multiprocessing
 from scipy.optimize import leastsq
+from scipy.integrate import simpson
+
 from scipy import stats
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QFrame, QWidget, QHBoxLayout, QVBoxLayout, QTabWidget
 from PyQt5.QtWidgets import QTableWidget, QPushButton, QLabel, QFileDialog
 from PyQt5.QtWidgets import QMessageBox, QApplication, QTableWidgetItem
 from PyQt5.QtWidgets import QGroupBox, QComboBox, QLineEdit
-
 import pyqtgraph
 # importing this after pyqt5 tells pyqtgraph to use qt5 instead of 4
 
@@ -26,14 +27,15 @@ channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "not
 sim = False
 volcal = 2250
 volcal_std = 50
-resistance = 4.2961608775
-frequency = 13560000
+resistance = 4.29616
+#frequency = 13560000
+power_method = 'fit'
 result_queue = Queue(100)
 voltage_ref_phase = 0
 voltage_ref_phase_std = 0
 current_ref_phase = 0
 current_ref_phase_std = 0
-ref_size = 10 # Number of phase reference points to average over
+ref_size = 14 # Number of phase reference points to average over
 scope_id = None
 
 def get_scope(scope_id):
@@ -47,7 +49,7 @@ def get_scope(scope_id):
         scope = ivi.agilent.agilentMSO7104B(scope_id)
 
     # Lecroy scopes, seems to work for multiple models which send the same idP
-    # tested for WR8404M, HDO6104A
+    # tested for WR8404M, HDO6104A, WS3014z
     elif idV == 0x05ff and idP == 0x1023:
         scope = ivi.lecroy.lecroyWR8404M(scope_id)
 
@@ -275,7 +277,7 @@ class sweep_tab(QWidget):
 
     def start_sweep(self):
         if not self.sweeping:
-            self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
+            self.this_sweep = sweeper(channel_assignment, volcal, resistance, voltage_ref_phase, current_ref_phase)
             self.this_sweep.start()
             self.sweeping = True
 
@@ -288,7 +290,7 @@ class sweep_tab(QWidget):
     def find_ref(self):
         if not self.sweeping:
             global voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std
-            self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
+            self.this_sweep = sweeper(channel_assignment, volcal, resistance, voltage_ref_phase, current_ref_phase)
             voltage_ref_phase, current_ref_phase, voltage_ref_phase_std, current_ref_phase_std = self.this_sweep.find_ref()
             self.ref_label.setText(
                 str(round(voltage_ref_phase - current_ref_phase,10))
@@ -364,12 +366,50 @@ class settings_tab(QWidget):
         volcal_row.addWidget(volcal_get)
         
         volcal_layout.addLayout(volcal_row)
-        l_main_Layout.addWidget(volcal_group)
         
+        # UI to set measurement resistance
+        rm_row = QHBoxLayout()
+        
+        self.rm_box = QLineEdit(str(resistance))
+        self.rm_box.setMaximumWidth(100)
+        self.rm_box.textChanged.connect(self.change_rm)
+        rm_row.addWidget(QLabel("Measurement Resistance: "))
+        rm_row.addWidget(self.rm_box)
+        
+        volcal_layout.addLayout(rm_row)
+        
+        # UI to choose power calc method
+        method_row = QHBoxLayout()
+        
+        #self.method_box = QLineEdit(str(resistance))
+        #self.rm_box.setMaximumWidth(100)
+        #self.rm_box.textChanged.connect(self.change_rm)
+        self.method_cbox = QComboBox()
+        self.method_cbox.addItem('Phase Shift Method')
+        self.method_cbox.addItem('Multiplication Method')
+        self.method_cbox.setCurrentIndex(0)
+        self.method_cbox.currentIndexChanged.connect(self.change_method)
+        
+        method_row.addWidget(QLabel("Power Calculation: "))
+        method_row.addWidget(self.method_cbox)
+        
+        volcal_layout.addLayout(method_row)
+        
+        
+        l_main_Layout.addWidget(volcal_group)
         self.setLayout(l_main_Layout)
         
         # monitor changes in scopelist
         update_btn.clicked.connect(self.scope_list)
+
+
+    def change_method(self):
+        global power_method
+        idx = self.method_cbox.currentIndex()
+        if idx == 0:
+            power_method = 'fit'
+        if idx == 1:
+            power_method = 'mult'
 
 
     def change_scope(self):
@@ -426,17 +466,22 @@ class settings_tab(QWidget):
         global volcal 
         volcal = float(self.volcal_box.text())
         
+        
+    def change_rm(self):
+        global resistance 
+        resistance = float(self.rm_box.text())
+        
 
     def get_volcal(self):
-        self.this_sweep = sweeper(channel_assignment, volcal, voltage_ref_phase, current_ref_phase)
+        self.this_sweep = sweeper(channel_assignment, volcal, resistance, voltage_ref_phase, current_ref_phase)
         try:
             self.volcal_box.setText(str(round(self.this_sweep.calibrate(),1)))
         except Exception as e:
             print(e)
 
-        if type(volcal_std) == int:
+        try:
             self.volcal_std_label.setText("±" + str(round(volcal_std,1)))
-        else:
+        except:
             self.volcal_std_label.setText(str(volcal_std))
         
   
@@ -462,11 +507,12 @@ class channel_settings(QHBoxLayout):
 
 
 class sweeper():
-    def __init__(self, channels, volcal, v_ref, c_ref):
+    def __init__(self, channels, volcal, resistance, v_ref, c_ref):
         global result_queue
         mgr = multiprocessing.Manager()
         self.channels = channels
         self.volcal = volcal
+        self.resistance = resistance
         self.v_ref = v_ref
         self.c_ref = c_ref
         self.data_queue = mgr.Queue(ref_size)
@@ -474,7 +520,7 @@ class sweeper():
         self.fit_process_list = []
         for i in range(cpu_count()-1):
             this_fit_proccess = Process(target=fit_worker,
-                args=(self.data_queue, result_queue, volcal, v_ref, c_ref))
+                args=(self.data_queue, result_queue, volcal, resistance, v_ref, c_ref, power_method))
 
             self.fit_process_list.append(this_fit_proccess)
     
@@ -609,25 +655,60 @@ class sweeper():
                 data_queue.put(data_dict)
 
 
-def fit_worker(data_queue, result_queue, volcal, v_ref, c_ref):
+def fit_worker(data_queue, result_queue, volcal, resistance, v_ref, c_ref, method='fit'):
     """Takes data_queue and fits a sinus. Returns 4-tuple of voltage,current, 
     phaseshift and power """
     while True:
         data_dict = data_queue.get()
-
         voltage_data = data_dict["internal voltage"]
-        v_amp, v_freq, v_phase = fit_func(voltage_data)
-        voltage_rms = v_amp/np.sqrt(2) * volcal
-
         current_data = data_dict["current"]
-        c_amp, c_freq, c_phase = fit_func(current_data)
-        current_rms = c_amp/np.sqrt(2)/resistance
 
-        phaseshift = np.pi/2 + (c_ref - c_phase) - (v_ref - v_phase)
-        power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
-        voltage_rms = v_amp/np.sqrt(2) * volcal
-        result = (voltage_rms, current_rms, phaseshift, power)
-        result_queue.put(result)
+        if method == 'fit':
+            v_amp, v_freq, v_phase = fit_func(voltage_data)
+            voltage_rms = v_amp/np.sqrt(2) * volcal
+
+            c_amp, c_freq, c_phase = fit_func(current_data)
+            current_rms = c_amp/np.sqrt(2)/resistance
+
+            phaseshift = np.pi/2 + (c_ref - c_phase) - (v_ref - v_phase)
+            power = voltage_rms * current_rms * np.absolute(np.cos(phaseshift))
+            result = (voltage_rms, current_rms, phaseshift, power)
+            result_queue.put(result)
+        
+        if method == 'mult':
+            data = np.array(voltage_data)
+            t = np.nan_to_num(data[:,0])
+            U = np.nan_to_num(data[:,1])
+            
+            data = np.array(current_data)
+            t = np.nan_to_num(data[:,0])
+            I = np.nan_to_num(data[:,1])
+            dt = t[1] - t[0]
+
+            spectrum = np.fft.fft(U)
+            freq = np.fft.fftfreq(len(spectrum))/dt
+            frequency = np.abs(freq[np.argmax(abs(spectrum))])
+            
+            T = 1/frequency
+            dT = t[-1]-t[0]
+            cut_t = int(dT/T)*T + t[0]
+            I = I[t<cut_t] / resistance
+            U = U[t<cut_t] * volcal
+            t = t[t<cut_t]
+            dT = t[-1]-t[0]
+            
+            shift0 = np.pi/2 + c_ref - v_ref
+            roll_num = int(shift0/(frequency*2*np.pi)/dt)
+            U = np.roll(U, -roll_num)
+            power = np.abs(simpson(U*I, t)/dT)
+            voltage_rms = np.sqrt(1/dT*simpson(U**2, t))
+            current_rms = np.sqrt(1/dT*simpson(I**2, t))
+            phaseshift = 0
+            phaseshift = np.arccos(power /( voltage_rms * current_rms)) 
+            
+            result = (voltage_rms, current_rms, phaseshift, power)
+            result_queue.put(result)
+
 
 
 def fit_func(data):
@@ -638,7 +719,10 @@ def fit_func(data):
     guess_amplitude = np.amax(amplitude)
     guess_phase = 0
     guess_y0 = 0
-    guess_frequency = frequency
+    spectrum = np.fft.fft(amplitude)
+    freq = np.fft.fftfreq(len(spectrum))/(time[1] - time[0])
+    guess_frequency = np.abs(freq[np.argmax(abs(spectrum))])
+
     data_first_guess = (guess_amplitude
                 *np.sin(time*guess_frequency*2*np.pi + guess_phase%(2*np.pi))
                 + guess_mean)
