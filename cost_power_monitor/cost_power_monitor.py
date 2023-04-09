@@ -23,7 +23,7 @@ from PyQt5.QtWidgets import QGroupBox, QComboBox, QLineEdit
 import pyqtgraph
 # importing this after pyqt5 tells pyqtgraph to use qt5 instead of 4
 
-channel_assignment = {1: "nothing", 2: "internal voltage", 3: "current", 4: "nothing"}
+channel_assignment = {1: "nothing", 2: "voltage", 3: "current", 4: "nothing"}
 sim = False
 volcal = 2250
 volcal_std = 50
@@ -492,7 +492,7 @@ class channel_settings(QHBoxLayout):
         self.number = number
         self.addWidget(QLabel("Channel " + str(self.number)))
         self.chan_cbox = QComboBox()
-        chan_options = ["nothing", "internal voltage", "current", "external voltage"]
+        chan_options = ["nothing", "voltage", "current", "calibration voltage"]
         self.chan_cbox.addItems(chan_options)
         self.addWidget(self.chan_cbox)
         self.chan_cbox.setCurrentIndex(chan_options.index(channel_assignment[self.number]))
@@ -553,13 +553,13 @@ class sweeper():
         for i in range(ref_size):
             data_dict = self.data_queue.get()
             try:
-                external_voltage_data = data_dict["external voltage"]
+                external_voltage_data = data_dict["calibration voltage"]
             except KeyError:
-                print("Channel 'External Voltage' not set.")
-                volcal_std = "Error, 'External Voltage' not set."
+                print("Channel 'calibration voltage' not set.")
+                volcal_std = "Error, 'calibration voltage' channel not set."
                 self.io_process.terminate()
                 return 0
-            voltage_data = data_dict["internal voltage"]
+            voltage_data = data_dict["voltage"]
             v_amp, v_freq, v_phase = fit_func(voltage_data)
             ext_v_amp, ext_v_freq, ext_v_phase = fit_func(external_voltage_data)
             volcal_list.append(ext_v_amp/v_amp)
@@ -581,7 +581,7 @@ class sweeper():
         c_phases = []
         for i in range(ref_size):
             data_dict = self.data_queue.get()
-            voltage_data = data_dict["internal voltage"]
+            voltage_data = data_dict["voltage"]
             v_amp, v_freq, v_phase = fit_func(voltage_data)
             current_data = data_dict["current"]
             c_amp, c_freq, c_phase = fit_func(current_data)
@@ -660,7 +660,7 @@ def fit_worker(data_queue, result_queue, volcal, resistance, v_ref, c_ref, metho
     phaseshift and power """
     while True:
         data_dict = data_queue.get()
-        voltage_data = data_dict["internal voltage"]
+        voltage_data = data_dict["voltage"]
         current_data = data_dict["current"]
 
         if method == 'fit':
