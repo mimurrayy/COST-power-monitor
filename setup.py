@@ -5,9 +5,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="cost-power-monitor",
-    version="1.1.1",
+    version="1.2.0",
     author="Julian Held",
-    author_email="julian.held@rub.de",
+    author_email="julian.held@umn.edu",
     license='MIT',
     platforms=['any'],
     description="GUI for continuously monitoring dissipated power of a COST-Jet",
