@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="cost-power-monitor",
-    version="1.2.0",
+    version="1.2.1",
     author="Julian Held",
     author_email="julian.held@umn.edu",
     license='MIT',
