@@ -41,7 +41,7 @@ Communication with the scope is handled via USBTMC using slightly modified versi
 ## How to cite
 
 When publishing results obtained with the software, please consider citing:
-- J Held (2023) mimurrayy/COST-power-monitor: v1.2.0 (v1.2.0). Zenodo. https://doi.org/10.5281/zenodo.7812363
+- J Held (2023) mimurrayy/COST-power-monitor: v1.2.1 (v1.2.1) Zenodo https://doi.org/10.5281/zenodo.7812494
 - Golda et al (2016) Concepts and characteristics of the 'COST Reference Microplasma Jet' _J. Phys. D: Appl. Phys._ **49** 084003 https://doi.org/10.1088/0022-3727/49/8/084003
 -  Golda et al (2020) Treating Surfaces with a Cold Atmospheric Pressure Plasma using the COST-Jet _JoVE (Journal of Visualized Experiments)_ e61801 https://dx.doi.org/10.3791/61801
 
