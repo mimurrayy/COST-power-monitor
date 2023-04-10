@@ -126,5 +126,18 @@ A reboot might be necessary before the change takes effect.
 python3 cost-power-monitor.py
 
 
+## Debugging
+On Linux, simply start the program in the terminal:
+```
+cost-power-monitor
+```
+
+On windows, stderr messages are written into a log file located in %appdata%, usually:
+```
+C:\Users\<username>\AppData\Roaming\COST-power-monitor.launch.pyw.log
+```
+If something goes wrong, this file should help with debugging.
+
+
 
 
