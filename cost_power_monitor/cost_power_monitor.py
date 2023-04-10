@@ -148,7 +148,7 @@ class data_monitor(QVBoxLayout):
 
             header = ("## cost-power-monitor file ## \n"+
                       "# " + str(datetime.datetime.now()) + "\n" +
-                      "# Reference phaseshift: " + phaseshift + "\n" +
+                      "# Reference phase shift: " + phaseshift + "\n" +
                       "# Calibration factor: " + str(volcal) + "\n" +
                       "# Channel Settings: " +  str(channel_assignment) + "\n\n")
                     
@@ -242,7 +242,7 @@ class sweep_tab(QWidget):
         power_group.setLayout(power_layout)
         
         show_power_row = QHBoxLayout()
-        show_power_row.addWidget(QLabel("Start/Pause Measurement"))
+        show_power_row.addWidget(QLabel("Start/Pause measurement"))
         power_layout.addLayout(show_power_row)
         
         power_btn_row = QHBoxLayout()
@@ -263,12 +263,12 @@ class sweep_tab(QWidget):
         
         show_ref_row = QHBoxLayout()
         self.ref_label = QLabel("Undef")
-        show_ref_row.addWidget(QLabel("Reference Phaseshift:"))
+        show_ref_row.addWidget(QLabel("Reference phase shift:"))
         show_ref_row.addWidget(self.ref_label)
         ref_layout.addLayout(show_ref_row)
                 
         ref_btn_row = QHBoxLayout()
-        ref_start_btn = QPushButton("Find")
+        ref_start_btn = QPushButton("Find phase shift")
         ref_start_btn.clicked.connect(self.find_ref)
         ref_btn_row.addWidget(ref_start_btn)
         ref_layout.addLayout(ref_btn_row)
@@ -363,7 +363,7 @@ class settings_tab(QWidget):
         self.volcal_std_label = QLabel()
         volcal_get = QPushButton("Find")
         volcal_get.clicked.connect(self.get_volcal)
-        volcal_row.addWidget(QLabel("Calibration Factor: "))
+        volcal_row.addWidget(QLabel("Calibration factor: "))
         volcal_row.addWidget(self.volcal_box)
         volcal_row.addWidget(self.volcal_std_label)
         volcal_row.addWidget(volcal_get)
@@ -376,7 +376,7 @@ class settings_tab(QWidget):
         self.rm_box = QLineEdit(str(resistance))
         self.rm_box.setMaximumWidth(100)
         self.rm_box.textChanged.connect(self.change_rm)
-        rm_row.addWidget(QLabel("Measurement Resistance: "))
+        rm_row.addWidget(QLabel("Measurement resistance: "))
         rm_row.addWidget(self.rm_box)
         
         volcal_layout.addLayout(rm_row)
@@ -388,12 +388,12 @@ class settings_tab(QWidget):
         #self.rm_box.setMaximumWidth(100)
         #self.rm_box.textChanged.connect(self.change_rm)
         self.method_cbox = QComboBox()
-        self.method_cbox.addItem('Phase Shift Method')
-        self.method_cbox.addItem('Multiplication Method')
+        self.method_cbox.addItem('Phase shift method')
+        self.method_cbox.addItem('Integration method')
         self.method_cbox.setCurrentIndex(0)
         self.method_cbox.currentIndexChanged.connect(self.change_method)
         
-        method_row.addWidget(QLabel("Power Calculation: "))
+        method_row.addWidget(QLabel("Power calculation: "))
         method_row.addWidget(self.method_cbox)
         
         volcal_layout.addLayout(method_row)
