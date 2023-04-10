@@ -150,6 +150,7 @@ class data_monitor(QVBoxLayout):
                       "# " + str(datetime.datetime.now()) + "\n" +
                       "# Reference phase shift: " + phaseshift + "\n" +
                       "# Calibration factor: " + str(volcal) + "\n" +
+                      "# Measurement resistance: " + str(resistance) + "\n" +
                       "# Channel Settings: " +  str(channel_assignment) + "\n\n")
                     
             table_header = ("Voltage" + seperator + "Current" +  seperator + 
