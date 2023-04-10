@@ -32,7 +32,7 @@ volcal = 2250
 volcal_std = 50
 resistance = 4.29616
 #frequency = 13560000
-power_method = 'fit'
+power_method = 'phaseshift'
 result_queue = Queue(100)
 voltage_ref_phase = 0
 voltage_ref_phase_std = 0
@@ -151,6 +151,7 @@ class data_monitor(QVBoxLayout):
                       "# Reference phase shift: " + phaseshift + "\n" +
                       "# Calibration factor: " + str(volcal) + "\n" +
                       "# Measurement resistance: " + str(resistance) + "\n" +
+                      "# Power calculation method: " + str(power_method) + "\n" +
                       "# Channel Settings: " +  str(channel_assignment) + "\n\n")
                     
             table_header = ("Voltage" + seperator + "Current" +  seperator + 
@@ -411,9 +412,9 @@ class settings_tab(QWidget):
         global power_method
         idx = self.method_cbox.currentIndex()
         if idx == 0:
-            power_method = 'fit'
+            power_method = 'phaseshift'
         if idx == 1:
-            power_method = 'mult'
+            power_method = 'integration'
 
 
     def change_scope(self):
@@ -659,7 +660,7 @@ class sweeper():
                 data_queue.put(data_dict)
 
 
-def fit_worker(data_queue, result_queue, volcal, resistance, v_ref, c_ref, method='fit'):
+def fit_worker(data_queue, result_queue, volcal, resistance, v_ref, c_ref, method='phaseshift'):
     """Takes data_queue and fits a sinus. Returns 4-tuple of voltage,current, 
     phaseshift and power """
     while True:
@@ -667,7 +668,7 @@ def fit_worker(data_queue, result_queue, volcal, resistance, v_ref, c_ref, metho
         voltage_data = data_dict["voltage"]
         current_data = data_dict["current"]
 
-        if method == 'fit':
+        if method == 'phaseshift':
             v_amp, v_freq, v_phase = fit_func(voltage_data)
             voltage_rms = v_amp/np.sqrt(2) * volcal
 
@@ -679,7 +680,7 @@ def fit_worker(data_queue, result_queue, volcal, resistance, v_ref, c_ref, metho
             result = (voltage_rms, current_rms, phaseshift, power)
             result_queue.put(result)
         
-        if method == 'mult':
+        if method == 'integration':
             data = np.array(voltage_data)
             t = np.nan_to_num(data[:,0])
             U = np.nan_to_num(data[:,1])
