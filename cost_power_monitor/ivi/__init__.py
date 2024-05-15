@@ -53,6 +53,7 @@ __all__ = [
         "jdsu",
         "lecroy",
         "rigol",
+        "rohdeschwarz",
         "santec",
         "tektronix",
         "testequity"]
