@@ -59,6 +59,9 @@ def get_scope(scope_id):
     elif idV == 0x0957 and idP == 6042: # York, untested
         scope = ivi.agilent.agilentDSOX2004A(scope_id)
 
+    elif idV == 0xaad and idP == 0x0197: #Rohde&Schwarz RTO6
+        scope = ivi.rohdeschwarz.rohdeschwarzRTO6(scope_id) 
+
     else:
         scope = ivi.lecroy.lecroyWR8404M(scope_id) # your IVI scope here!
 
