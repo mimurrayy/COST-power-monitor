@@ -1,7 +1,7 @@
 Source: cost-power-monitor
 Section: unknown
 Priority: optional
-Maintainer: Julian Held <julian.held@rub.de>
+Maintainer: Julian Held <jheld@umn.edu>
 Build-Depends: debhelper-compat (= 12), dh-python, python3-setuptools, python3-all
 Standards-Version: 4.4.1
 Homepage: https://github.com/mimurrayy/COST-power-monitor/
